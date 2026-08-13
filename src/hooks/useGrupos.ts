@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { hojeSP } from '@/lib/data'
+import { assinarEmLote } from '@/lib/storage'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from './useSessao'
 
@@ -22,30 +23,11 @@ function porOfensiva(
  */
 const SEGUNDOS_URL_CAPA = 600
 
-/**
- * Assina em lote. Uma lista de dez grupos com uma chamada por card sao dez idas
- * ao servidor antes da primeira imagem aparecer.
- */
-async function assinarCapas(caminhos: string[]): Promise<Map<string, string>> {
-  const url = new Map<string, string>()
-  if (caminhos.length === 0) return url
-
-  const { data, error } = await supabase.storage
-    .from('grupos')
-    .createSignedUrls(caminhos, SEGUNDOS_URL_CAPA)
-  // Capa e enfeite: falhar aqui nao pode derrubar a lista de grupos.
-  if (error) return url
-
-  for (const item of data ?? []) {
-    if (item.signedUrl && item.path) url.set(item.path, item.signedUrl)
-  }
-  return url
-}
+const assinarCapas = (caminhos: string[]) => assinarEmLote('grupos', caminhos, SEGUNDOS_URL_CAPA)
 
 export interface ResumoGrupo {
   id: string
   nome: string
-  codigo: string
   membros: number
   desafios: number
   /** Posicao do usuario no ranking do grupo. Null se ele nao aparecer na lista. */
@@ -57,7 +39,6 @@ export interface ResumoGrupo {
 interface LinhaGrupoLista {
   id: string
   nome: string
-  codigo_convite: string
   foto_path: string | null
   group_members: { user_id: string; profiles: { nome: string } | null }[] | null
   habits: { id: string; streaks: { user_id: string; atual: number }[] | null }[] | null
@@ -76,8 +57,10 @@ export function useGrupos() {
       // alguns milhares de linhas, o certo e uma RPC que ja devolve o agregado.
       const { data, error } = await supabase
         .from('groups')
+        // Sem `codigo_convite`: a lista nao mostra mais o codigo de nenhum
+        // grupo, e dado que a tela nao usa nao precisa sair do banco.
         .select(
-          'id, nome, codigo_convite, foto_path, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
+          'id, nome, foto_path, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
         )
         .eq('habits.ativo', true)
         // Habito de perda nao gera ocorrencia nem rende ouro: ninguem faz
@@ -122,7 +105,6 @@ export function useGrupos() {
         return {
           id: g.id,
           nome: g.nome,
-          codigo: g.codigo_convite,
           membros: membros.length,
           desafios: desafios.length,
           posicao: indice >= 0 ? indice + 1 : null,
@@ -165,7 +147,6 @@ export interface DetalheGrupo {
   fotoUrl: string | null
   membros: MembroGrupo[]
   desafios: { id: string; titulo: string; icone: string; ouroBase: number }[]
-  feed: { id: string; usuarioId: string; titulo: string; feitoEm: string }[]
 }
 
 export function useGrupo(grupoId: string | undefined) {
@@ -197,33 +178,25 @@ export function useGrupo(grupoId: string | undefined) {
       const ids = (desafios ?? []).map((d) => d.id)
       const concluidosPorUsuario = new Map<string, number>()
       const streakPorUsuario = new Map<string, number>()
-      const feed: DetalheGrupo['feed'] = []
 
       if (ids.length > 0) {
-        // As tres dependem so dos ids dos desafios, entao vao na mesma rodada.
-        const [rHoje, rFeed, rStreaks] = await Promise.all([
-          // O placar de hoje e filtrado no servidor. Contar a partir do feed
-          // limitado dava numero errado assim que o grupo passava de 50 feitos.
+        // As duas dependem so dos ids dos desafios, entao vao na mesma rodada.
+        // O feed saiu daqui: ele rola sem fim e pagina sozinho em `useFeedGrupo`.
+        const [rHoje, rStreaks] = await Promise.all([
+          // O placar de hoje e filtrado no servidor, nunca contado a partir de
+          // uma lista limitada: com o corte, o numero erra assim que o grupo
+          // passa do tamanho da pagina.
           supabase
             .from('occurrences')
             .select('user_id')
             .in('habit_id', ids)
             .eq('status', 'feito')
             .eq('data_sp', hojeSP()),
-          supabase
-            .from('occurrences')
-            .select('id, user_id, habit_id, feito_em')
-            .in('habit_id', ids)
-            .eq('status', 'feito')
-            .not('feito_em', 'is', null)
-            .order('feito_em', { ascending: false })
-            .limit(20),
           supabase.from('streaks').select('user_id, atual').in('habit_id', ids),
         ])
 
         // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
         if (rHoje.error) throw rHoje.error
-        if (rFeed.error) throw rFeed.error
         if (rStreaks.error) throw rStreaks.error
 
         for (const o of rHoje.data ?? []) {
@@ -231,16 +204,6 @@ export function useGrupo(grupoId: string | undefined) {
         }
         for (const s of rStreaks.data ?? []) {
           streakPorUsuario.set(s.user_id, (streakPorUsuario.get(s.user_id) ?? 0) + s.atual)
-        }
-
-        const titulos = new Map((desafios ?? []).map((d) => [d.id, d.titulo]))
-        for (const o of rFeed.data ?? []) {
-          feed.push({
-            id: o.id,
-            usuarioId: o.user_id,
-            titulo: titulos.get(o.habit_id) ?? 'Desafio',
-            feitoEm: o.feito_em,
-          })
         }
       }
 
@@ -279,7 +242,6 @@ export function useGrupo(grupoId: string | undefined) {
           icone: d.icone,
           ouroBase: d.ouro_base,
         })),
-        feed,
       }
     },
   })

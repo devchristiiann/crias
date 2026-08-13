@@ -168,9 +168,16 @@ test.describe.serial('percurso mobile em 360px', () => {
     await page.getByRole('button', { name: 'Fechar' }).click()
     await expect(page.locator('dialog[open]')).toHaveCount(0)
 
-    // Aba Grupos.
+    // Aba Grupos. Com um grupo so, a aba abre o proprio grupo: a lista de um
+    // item era um toque a mais em todo acesso.
     await page.getByRole('link', { name: 'Grupos' }).click()
-    await page.waitForURL('**/grupos')
+    await page.waitForURL('**/grupos/*')
+    await expect(page.getByRole('heading', { name: `Turma ${carimbo}` })).toBeVisible()
+    await verificarTela(page, '/grupos/:id')
+
+    // E o Voltar da pagina leva para a lista, sem o atalho trazer de volta.
+    await page.locator('#conteudo').getByRole('link', { name: 'Grupos' }).click()
+    await page.waitForURL('**/grupos?todos=1')
     await expect(page.getByRole('heading', { name: 'Grupos' })).toBeVisible()
     await expect(page.getByText(`Turma ${carimbo}`)).toBeVisible()
     await verificarTela(page, '/grupos')

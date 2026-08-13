@@ -1,26 +1,39 @@
-import { ArrowLeft, Camera, Check, Copy, Loader2, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, Camera, Loader2, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { FeedGrupo } from '@/components/grupos/FeedGrupo'
 import { FotoCapaGrupo } from '@/components/grupos/FotoCapaGrupo'
 import { GerenciarGrupo } from '@/components/grupos/GerenciarGrupo'
 import { PlacarHoje, Ranking } from '@/components/grupos/Ranking'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
+import { CardOcorrencia } from '@/components/hoje/CardOcorrencia'
+import { FolhaDesafio } from '@/components/hoje/FolhaDesafio'
 import { Botao } from '@/components/ui/Botao'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { useGrupo } from '@/hooks/useGrupos'
 import { useGrupoRealtime } from '@/hooks/useGrupoRealtime'
+import { useOcorrenciasHoje } from '@/hooks/useOcorrenciasHoje'
 import { useSessao } from '@/hooks/useSessao'
 import { iconeDoHabito } from '@/lib/icones'
 
 export function GrupoDetalhe() {
   const { id } = useParams<{ id: string }>()
   const { data: grupo, isPending, isError, refetch } = useGrupo(id)
+  const { data: ocorrencias } = useOcorrenciasHoje()
   const { usuarioId } = useSessao()
   const [criando, setCriando] = useState(false)
-  const [copiado, setCopiado] = useState(false)
+  const [selecionada, setSelecionada] = useState<string | null>(null)
 
   useGrupoRealtime(id, (grupo?.desafios ?? []).map((d) => d.id))
+
+  // Concluir dentro do grupo e o mesmo check-in da tela Hoje, e nao uma segunda
+  // implementacao: a ocorrencia de hoje daquele desafio ja esta no cache.
+  const minhaOcorrencia = useMemo(
+    () => new Map((ocorrencias ?? []).map((o) => [o.habitId, o])),
+    [ocorrencias],
+  )
+  const aberta = (ocorrencias ?? []).find((o) => o.id === selecionada) ?? null
 
   if (isPending) {
     return (
@@ -34,22 +47,12 @@ export function GrupoDetalhe() {
     return <EstadoErro mensagem="Não deu para carregar este grupo." aoTentarDeNovo={refetch} />
   }
 
-  async function copiarCodigo() {
-    if (!grupo) return
-    try {
-      await navigator.clipboard.writeText(grupo.codigo)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 2000)
-    } catch {
-      // Sem permissao de area de transferencia: o codigo ja esta visivel na tela.
-      setCopiado(false)
-    }
-  }
-
   return (
     <section className="space-y-5">
+      {/* O `todos` desliga a abertura automatica do grupo unico: sem ele, voltar
+          para a lista cairia direto de volta aqui dentro. */}
       <Link
-        to="/grupos"
+        to="/grupos?todos=1"
         className="-my-2 inline-flex min-h-11 items-center gap-1 py-2 text-sm
                    text-muted-foreground hover:text-foreground"
       >
@@ -80,21 +83,6 @@ export function GrupoDetalhe() {
 
       <Ranking membros={grupo.membros} usuarioId={usuarioId} />
 
-      <button
-        type="button"
-        onClick={copiarCodigo}
-        className="flex w-full items-center justify-between rounded-xl border border-border
-                   bg-card p-4 text-left shadow-sm"
-      >
-        <span>
-          <span className="block text-xs text-muted-foreground">Código de convite</span>
-          <span className="block font-mono text-xl font-semibold tracking-widest">
-            {grupo.codigo}
-          </span>
-        </span>
-        {copiado ? <Check className="size-5 text-success" /> : <Copy className="size-5" />}
-      </button>
-
       <div className="space-y-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Desafios
@@ -114,6 +102,18 @@ export function GrupoDetalhe() {
         )}
         <ul className="space-y-2">
           {grupo.desafios.map((d) => {
+            const ocorrencia = minhaOcorrencia.get(d.id)
+            // Desafio com ocorrencia hoje vira o mesmo cartao da tela Hoje, e
+            // marcar aqui usa exatamente o mesmo caminho. Sem ocorrencia hoje a
+            // linha continua so informativa: nao existe o que marcar.
+            if (ocorrencia) {
+              return (
+                <li key={d.id}>
+                  <CardOcorrencia ocorrencia={ocorrencia} aoAbrir={() => setSelecionada(ocorrencia.id)} />
+                </li>
+              )
+            }
+
             const Icone = iconeDoHabito(d.icone)
             return (
               <li
@@ -123,7 +123,10 @@ export function GrupoDetalhe() {
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Icone className="size-5" />
                 </span>
-                <span className="min-w-0 flex-1 truncate font-medium">{d.titulo}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{d.titulo}</span>
+                  <span className="block text-xs text-muted-foreground">Sem check-in hoje</span>
+                </span>
                 <span className="shrink-0 text-sm text-muted-foreground">{d.ouroBase} ouro</span>
                 {/* Excluir desafio vive na folha de administrar, atras da
                     engrenagem. Aqui a lixeira convidava ao toque acidental. */}
@@ -137,26 +140,9 @@ export function GrupoDetalhe() {
         </Botao>
       </div>
 
-      {grupo.feed.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Atividade
-          </h2>
-          <ul className="space-y-1.5">
-            {grupo.feed.map((f) => {
-              const membro = grupo.membros.find((m) => m.id === f.usuarioId)
-              return (
-                <li key={f.id} className="flex items-center gap-2 text-sm">
-                  <Check className="size-4 shrink-0 text-success" />
-                  <span className="truncate">
-                    {membro?.nome ?? 'Alguém'} concluiu {f.titulo}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
+      <FeedGrupo grupo={grupo} />
+
+      <FolhaDesafio ocorrencia={aberta} aoFechar={() => setSelecionada(null)} />
 
       <Folha aberta={criando} aoFechar={() => setCriando(false)} titulo="Desafio do grupo">
         <FormularioHabito

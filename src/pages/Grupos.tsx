@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Camera, CameraOff, ChevronRight, Loader2, Plus, Users } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { CodigoConvite } from '@/components/grupos/CodigoConvite'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { EstadoErro } from '@/components/ui/EstadoErro'
@@ -12,6 +13,16 @@ import { supabase } from '@/lib/supabase'
 export function Grupos() {
   const { data: grupos, isPending, isError, refetch } = useGrupos()
   const [acao, setAcao] = useState<'criar' | 'entrar' | null>(null)
+  const [parametros] = useSearchParams()
+
+  const lista = grupos ?? []
+  // Quem so tem um grupo cai direto nele: a lista de um item era um toque a
+  // mais em todo acesso. O `?todos=1` do botao Voltar desliga o atalho, senao
+  // nao haveria como chegar em Criar. Nenhuma folha aberta na hora: a folha de
+  // criar mostra o codigo do grupo novo e o salto apagaria ele da tela.
+  if (!isPending && !isError && lista.length === 1 && acao === null && !parametros.has('todos')) {
+    return <Navigate to={`/grupos/${lista[0].id}`} replace />
+  }
 
   return (
     <section className="space-y-5">
@@ -30,7 +41,7 @@ export function Grupos() {
         <EstadoErro mensagem="Não deu para carregar seus grupos." aoTentarDeNovo={refetch} />
       )}
 
-      {!isPending && !isError && (grupos ?? []).length === 0 && (
+      {!isPending && !isError && lista.length === 0 && (
         <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           Você ainda não participa de nenhum grupo. Crie um e mande o código para quem você quer
           junto.
@@ -38,7 +49,7 @@ export function Grupos() {
       )}
 
       <ul className="space-y-2">
-        {(grupos ?? []).map((g) => (
+        {lista.map((g) => (
           <li key={g.id}>
             <Link
               to={`/grupos/${g.id}`}
@@ -93,27 +104,40 @@ export function Grupos() {
   )
 }
 
+/** O que `criar_grupo` devolve quando dá certo. O código nasce no servidor. */
+interface GrupoCriado {
+  id: string
+  codigo: string
+}
+
 function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void }) {
   const cliente = useQueryClient()
+  const navegar = useNavigate()
   const [nome, setNome] = useState('')
   const [exigeFoto, setExigeFoto] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [criado, setCriado] = useState<GrupoCriado | null>(null)
 
   const criar = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<GrupoCriado> => {
       const { data, error } = await supabase.rpc('criar_grupo', {
         p_nome: nome,
         p_exige_foto: exigeFoto,
       })
       if (error) throw error
-      if (data?.error) throw new Error('Não deu para criar o grupo agora.')
+      if (data?.error || !data?.id || !data?.codigo) {
+        throw new Error('Não deu para criar o grupo agora.')
+      }
+      return { id: data.id, codigo: data.codigo }
     },
-    onSuccess: () => {
+    // A folha continua aberta mostrando o codigo: e o unico momento em que a
+    // pessoa vai mandar o convite, e fechar sozinho esconderia ele antes disso.
+    onSuccess: (grupo) => {
       setNome('')
       setExigeFoto(false)
       setErro(null)
+      setCriado(grupo)
       cliente.invalidateQueries({ queryKey: ['grupo'] })
-      aoFechar()
     },
     onError: (e: Error) => setErro(e.message),
   })
@@ -124,7 +148,32 @@ function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => voi
     setNome('')
     setExigeFoto(false)
     setErro(null)
+    setCriado(null)
     aoFechar()
+  }
+
+  if (criado) {
+    return (
+      <Folha aberta={aberta} aoFechar={fechar} titulo="Grupo criado">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Mande este código para quem você quer junto.
+          </p>
+          <CodigoConvite codigo={criado.codigo} />
+          <Botao
+            tamanho="lg"
+            className="w-full"
+            onClick={() => {
+              const destino = `/grupos/${criado.id}`
+              fechar()
+              navegar(destino)
+            }}
+          >
+            Abrir grupo
+          </Botao>
+        </div>
+      </Folha>
+    )
   }
 
   return (
