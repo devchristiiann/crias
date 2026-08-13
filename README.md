@@ -137,15 +137,18 @@ node scripts/sql.mjs -e "select public.hoje_sp()"
 
 ## Como publicar na Vercel
 
-A Vercel é o serviço que coloca o site no ar. O funcionamento é automático: assim que o código novo chega no GitHub, na branch `main`, a Vercel monta e publica a versão nova sozinha.
+**O site já está no ar em `https://crias-rho.vercel.app`.** A publicação é automática: assim que o código novo chega no GitHub, na branch `main`, a Vercel monta e publica a versão nova sozinha.
 
-### Primeira vez
+O endereço saiu com o sufixo `-rho` porque `crias.vercel.app` já pertencia a outra pessoa. Esse endereço está registrado dentro do Supabase, e é ele que faz o link de recuperação de senha voltar para o lugar certo. Se um dia você trocar de domínio, precisa avisar o Supabase junto, senão a recuperação de senha quebra.
 
-1. Entre em `https://vercel.com` e crie a conta, de preferência entrando com o GitHub.
-2. Clique em **Add New** e depois em **Project**.
-3. Escolha o repositório `gustacg/crias`.
-4. A Vercel reconhece o projeto sozinha pelo arquivo `vercel.json` que já está aqui. Não é preciso mudar nada nos campos de build.
-5. Antes de clicar em **Deploy**, abra a seção **Environment Variables** e cadastre as três variáveis abaixo. Elas são as únicas que a Vercel precisa.
+### O que já foi configurado
+
+O projeto na Vercel se chama `crias` e já está ligado ao repositório `gustacg/crias`. As três variáveis abaixo já estão cadastradas nos três ambientes, então **você não precisa importar nada**.
+
+### Se precisar cadastrar de novo
+
+1. Abra o projeto na Vercel e vá em **Settings**, depois **Environment Variables**.
+2. Cadastre as três variáveis abaixo. Elas são as únicas que a Vercel precisa.
 
 | Variável para cadastrar na Vercel | Onde pegar o valor |
 | --- | --- |
@@ -157,7 +160,11 @@ Marque cada uma para os três ambientes oferecidos: **Production**, **Preview** 
 
 **Não cadastre na Vercel** nenhuma variável secreta, como `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` ou `VAPID_PRIVATE_KEY`. O site é público e essas chaves não têm o que fazer nele. Elas ficam guardadas dentro do Supabase.
 
-6. Clique em **Deploy** e aguarde. No fim aparece o endereço do site.
+3. Clique em **Deploy** e aguarde. No fim aparece o endereço do site.
+
+Existe também um `VERCEL_TOKEN` guardado no seu `.env`. Ele dá acesso ao projeto pela linha de comando, o que permite cadastrar variável e publicar sem abrir o painel. Ele é secreto: não vai para o GitHub e não vai para lugar nenhum além do seu `.env`.
+
+**Atenção a um detalhe que já causou tela branca aqui:** cadastrar uma variável não muda o site sozinho. O valor entra no site no momento em que ele é montado, então **toda variável nova exige uma publicação nova** para valer.
 
 ### Nas próximas vezes
 

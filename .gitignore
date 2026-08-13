@@ -8,3 +8,7 @@ supabase/.temp/
 playwright-report/
 test-results/
 .vercel
+
+# Arquivos de env auxiliares nunca sobem, so o .env.example
+.env.*
+!.env.example
