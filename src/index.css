@@ -96,6 +96,9 @@
     /* Scroll horizontal e bug bloqueante neste projeto. */
     overflow-x: hidden;
     letter-spacing: 0.012em;
+    /* Sem isto o iOS deixa a pagina inteira balancar por cima da casca fixa,
+       e o menu parece deslizar mesmo estando preso na viewport. */
+    overscroll-behavior: none;
   }
 
   /* 16px e o minimo que impede o iOS de dar zoom ao focar o campo. */

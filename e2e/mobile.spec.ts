@@ -221,10 +221,21 @@ async function verificarMenuFixo(page: Page, tela: string) {
   ).toBeLessThan(2)
 
   const altura = page.viewportSize()?.height ?? 0
+
+  // O menu tem que estar INTEIRO na tela e encostado no rodape. Ja apareceu
+  // cortado pela metade no iPhone, e com faixa vazia embaixo depois de rolar.
+  expect(depois?.y ?? -1, `${tela}: o topo do menu esta fora da tela`).toBeGreaterThanOrEqual(0)
   expect(
-    (depois?.y ?? 0) + (depois?.height ?? 0),
-    `${tela}: o menu nao esta encostado no rodape`,
-  ).toBeLessThanOrEqual(altura + 1)
+    Math.abs((depois?.y ?? 0) + (depois?.height ?? 0) - altura),
+    `${tela}: o menu nao termina exatamente no rodape da tela`,
+  ).toBeLessThanOrEqual(1)
+
+  // E o documento nao pode rolar: se ele rolar, existe um estado em que o menu
+  // sai da tela, que foi exatamente o sintoma relatado.
+  const documentoRola = await page.evaluate(
+    () => document.documentElement.scrollHeight > window.innerHeight + 1,
+  )
+  expect(documentoRola, `${tela}: a pagina inteira rola por baixo da casca`).toBe(false)
 
   // A area que rola tem que terminar onde o menu comeca. Enquanto isso valer,
   // nenhum conteudo consegue ficar escondido atras dele: o que passa da borda
