@@ -69,6 +69,32 @@ const MAPA = {
 const ALVO = { personagem: 128, atleta: 128, cenario: 128, item: 96, fundo: 384 }
 const TOL_FUNDO = 46
 
+/**
+ * Toda arte de personagem sai numa tela unica de 128 por 128, com o pe na
+ * mesma linha e o corpo centralizado. Sem isso um coelho recortado no proprio
+ * quadro fica do tamanho de um golem, e o chapeu nao tem onde sentar porque
+ * cada sprite tem a cabeca numa altura diferente.
+ *
+ * O fator abaixo e o unico lugar onde tamanho relativo existe. Fica perto de 1
+ * de proposito: diferenca grande demais foi exatamente a reclamacao.
+ */
+const LADO_PADRAO = 128
+const CHAO = 124
+const TOPO = 6
+const FATOR_FAMILIA = { pes: 0.97, anf: 0.88, anp: 1.0, mof: 0.84, mop: 1.0, deu: 0.97, fol: 0.95, rob: 0.92, atl: 0.97 }
+/* Bicho que flutua nao encosta o pe no chao. */
+const FLUTUA = new Set(['rob-3', 'mof-3', 'mof-5', 'fol-4', 'cen-7'])
+
+/**
+ * Onde cada acessorio encosta. Sem isso o Avatar so conhecia a ancora de
+ * cabeca e punha espada, cajado e raio na testa da pessoa.
+ */
+const ENCAIXE = {
+  'ace-1': 'cabeca', 'ace-2': 'cabeca', 'ace-3': 'cabeca',
+  'ace-10': 'mao', 'ace-11': 'mao', 'ace-12': 'mao', 'ace-14': 'mao',
+  'ace-15': 'costas', 'ace-16': 'costas',
+}
+
 /* Imagens que o Gemini devolveu com a mesma arte repetida lado a lado. */
 const TRIPLICADOS = new Set(['rob-1', 'anf-1'])
 /* Imagens com respingo solto que nao faz parte do desenho. */
@@ -281,6 +307,87 @@ function grade({ px, w, h }, x0, y0, x1, y1) {
   return melhor
 }
 
+/**
+ * Coloca o personagem ja reduzido numa tela de 128 por 128, com o pe no chao
+ * comum, e mede no pixel onde ficam a cabeca e a mao.
+ *
+ * A medida da mao nao e chute: varre a faixa da cintura e pega a coluna mais
+ * externa que ainda tem pixel aceso. E ali que a mao esta em praticamente todo
+ * personagem desta colecao, porque o prompt exigiu braco solto ao lado do corpo.
+ */
+function assentar(px, w, h, id) {
+  const fator = FATOR_FAMILIA[id.split('-')[0]] ?? 0.95
+  const alturaUtil = Math.round((CHAO - TOPO) * fator)
+  const escala = alturaUtil / h
+  const larg = Math.max(1, Math.round(w * escala))
+  const alt = alturaUtil
+  const ox = Math.round((LADO_PADRAO - larg) / 2)
+  const oy = FLUTUA.has(id) ? Math.round((CHAO - alt) * 0.72) : CHAO - alt
+
+  const tela = Buffer.alloc(LADO_PADRAO * LADO_PADRAO * 4)
+  for (let y = 0; y < alt; y++) {
+    const sy = Math.min(h - 1, Math.floor(y / escala))
+    for (let x = 0; x < larg; x++) {
+      const sx = Math.min(w - 1, Math.floor(x / escala))
+      const de = (sy * w + sx) * 4
+      if (px[de + 3] === 0) continue
+      const ty = oy + y, tx = ox + x
+      if (ty < 0 || ty >= LADO_PADRAO || tx < 0 || tx >= LADO_PADRAO) continue
+      const para = (ty * LADO_PADRAO + tx) * 4
+      tela[para] = px[de]; tela[para + 1] = px[de + 1]
+      tela[para + 2] = px[de + 2]; tela[para + 3] = 255
+    }
+  }
+
+  const aceso = (x, y) => tela[(y * LADO_PADRAO + x) * 4 + 3] > 0
+  let topoY = LADO_PADRAO, baseY = 0
+  for (let y = 0; y < LADO_PADRAO; y++) {
+    for (let x = 0; x < LADO_PADRAO; x++) {
+      if (!aceso(x, y)) continue
+      if (y < topoY) topoY = y
+      if (y > baseY) baseY = y
+      break
+    }
+  }
+
+  // Cabeca: largura da silhueta na faixa de cima, que e onde chapeu encosta.
+  //
+  // A largura sai da MEDIANA das linhas da faixa, nao da uniao delas. A uniao
+  // parecia obvia e estava errada: o rabo da raposa e as cobras da Medusa
+  // entram na faixa de cima e esticavam a "cabeca" para o quadro inteiro, e a
+  // coroa saia do tamanho do bicho. A mediana ignora a linha excepcional.
+  const faixa = Math.max(topoY + 1, Math.round(topoY + (baseY - topoY) * 0.16))
+  const linhas = []
+  for (let y = topoY; y <= faixa; y++) {
+    let e = -1, d = -1
+    for (let x = 0; x < LADO_PADRAO; x++) if (aceso(x, y)) { if (e < 0) e = x; d = x }
+    if (e >= 0) linhas.push([e, d])
+  }
+  let ce, cd
+  if (linhas.length) {
+    const meio = linhas.slice().sort((a, b) => (a[1] - a[0]) - (b[1] - b[0]))[Math.floor(linhas.length / 2)]
+    ce = meio[0]; cd = meio[1]
+  } else { ce = ox; cd = ox + larg - 1 }
+
+  // Teto e piso: chapeu menor que isso vira alfinete, maior vira guarda-sol.
+  const LARG_MIN = 26, LARG_MAX = 56
+  let cabecaLargura = Math.min(LARG_MAX, Math.max(LARG_MIN, cd - ce + 1))
+  const cabecaX = Math.round((ce + cd) / 2)
+
+  // Mao: coluna mais externa acesa na faixa da cintura, do lado direito de quem
+  // olha. E o lado que o prompt deixou livre em quase todos.
+  const cintura = Math.round(topoY + (baseY - topoY) * 0.58)
+  let maoX = cd, maoY = cintura
+  for (let y = Math.max(0, cintura - 6); y <= Math.min(LADO_PADRAO - 1, cintura + 6); y++) {
+    for (let x = LADO_PADRAO - 1; x >= 0; x--) if (aceso(x, y)) { if (x > maoX) { maoX = x; maoY = y } break }
+  }
+
+  return {
+    px: tela,
+    medidas: { cabecaX, cabecaY: topoY, cabecaLargura, maoX, maoY, baseY },
+  }
+}
+
 async function processar(tipo, arquivo, id, nome) {
   const img = await carregar(arquivo)
   const relatorio = { id, nome, tipo }
@@ -315,7 +422,6 @@ async function processar(tipo, arquivo, id, nome) {
   const escala = Math.min(1, teto / Math.max(nativoL, nativoA))
   const destL = Math.max(8, Math.round(nativoL * escala))
   const destA = Math.max(8, Math.round(nativoA * escala))
-  relatorio.saida = destL + 'x' + destA
 
   let cano = sharp(img.px, { raw: { width: img.w, height: img.h, channels: 4 } })
     .extract({ left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 })
@@ -331,9 +437,22 @@ async function processar(tipo, arquivo, id, nome) {
     data[o + 3] = data[o + 3] < 128 ? 0 : 255
   }
 
-  const png = await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+  let bruto = data
+  let larguraFinal = info.width
+  let alturaFinal = info.height
+
+  if (tipo === 'personagem' || tipo === 'atleta') {
+    const posto = assentar(data, info.width, info.height, id)
+    bruto = posto.px
+    larguraFinal = LADO_PADRAO
+    alturaFinal = LADO_PADRAO
+    Object.assign(relatorio, posto.medidas)
+  }
+
+  const png = await sharp(bruto, { raw: { width: larguraFinal, height: alturaFinal, channels: 4 } })
     .png({ palette: true, colours: tipo === 'fundo' ? 128 : 48, effort: 10, compressionLevel: 9 })
     .toBuffer()
+  relatorio.saida = larguraFinal + 'x' + alturaFinal
 
   const slug = nome.normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -342,13 +461,7 @@ async function processar(tipo, arquivo, id, nome) {
   relatorio.arquivo = destino.slice(destino.indexOf('/sprites/'))
   relatorio.kb = +(png.length / 1024).toFixed(1)
 
-  // Ancora do chapeu: topo do conteudo, no centro horizontal da silhueta.
-  // ponytail: a ancora da mao sai de uma fracao fixa da altura. Serve para
-  // 90% dos corpos; o resto se corrige a mao no manifesto depois de ver.
-  if (tipo === 'personagem' || tipo === 'atleta') {
-    relatorio.ancoraCabeca = [Math.round(destL / 2), 0]
-    relatorio.ancoraMao = [Math.round(destL * 0.86), Math.round(destA * 0.58)]
-  }
+  if (ENCAIXE[id]) relatorio.encaixe = ENCAIXE[id]
   return relatorio
 }
 

@@ -47,13 +47,60 @@ describe('catalogo de arte', () => {
     expect(padrao!.custo).toBeLessThanOrEqual(200)
   })
 
-  // A ancora e o que faz o chapeu sentar na cabeca. Personagem sem ancora
-  // recebe acessorio no lugar errado, e isso nao aparece no typecheck.
-  it('todo personagem tem ancora de cabeca e de mao', () => {
-    const semAncora = pecasDoSlot('personagem')
-      .filter((p) => !p.ancoraCabeca || !p.ancoraMao)
+  // A medida e o que faz o chapeu sentar na cabeca e a espada ficar na mao.
+  // Personagem sem medida recebe acessorio no lugar errado, e isso nao aparece
+  // no typecheck nem quebra o build: aparece so na cara do usuario.
+  it('todo personagem tem cabeca, mao e chao medidos', () => {
+    const sem = pecasDoSlot('personagem')
+      .filter(
+        (p) =>
+          p.cabecaX === undefined ||
+          p.cabecaY === undefined ||
+          p.cabecaLargura === undefined ||
+          p.maoX === undefined ||
+          p.maoY === undefined ||
+          p.baseY === undefined,
+      )
       .map((p) => p.id)
-    expect(semAncora).toEqual([])
+    expect(sem).toEqual([])
+  })
+
+  it('personagem sai sempre na tela padrao de 128 por 128', () => {
+    const fora = pecasDoSlot('personagem')
+      .filter((p) => p.largura !== 128 || p.altura !== 128)
+      .map((p) => `${p.id} ${p.largura}x${p.altura}`)
+    expect(fora).toEqual([])
+  })
+
+  // Chao comum e o que impede coelho do tamanho de golem. Uns poucos flutuam
+  // de proposito, drone e fantasma entre eles, entao a regra e a maioria pisar
+  // na mesma linha, nao todo mundo.
+  it('a grande maioria pisa na mesma linha de chao', () => {
+    const bases = pecasDoSlot('personagem').map((p) => p.baseY!)
+    const chao = Math.max(...bases)
+    const noChao = bases.filter((b) => chao - b <= 2).length
+    expect(noChao).toBeGreaterThanOrEqual(bases.length - 5)
+  })
+
+  it('quem flutua nao flutua alto demais', () => {
+    const bases = pecasDoSlot('personagem').map((p) => p.baseY!)
+    expect(Math.max(...bases) - Math.min(...bases)).toBeLessThanOrEqual(24)
+  })
+
+  it('a medida da cabeca fica dentro do teto e do piso do pipeline', () => {
+    const fora = pecasDoSlot('personagem')
+      .filter((p) => p.cabecaLargura! < 26 || p.cabecaLargura! > 56)
+      .map((p) => `${p.id} ${p.cabecaLargura}`)
+    expect(fora).toEqual([])
+  })
+
+  // Sem encaixe o Avatar trata tudo como chapeu, e foi assim que espada,
+  // cajado e raio foram parar na testa da pessoa.
+  it('todo acessorio declara onde encosta', () => {
+    const sem = pecasDoSlot('acessorio')
+      .filter((p) => !p.encaixe)
+      .map((p) => p.id)
+    expect(sem).toEqual([])
   })
 
   it('nenhum sprite passa do tamanho que o pipeline promete', () => {

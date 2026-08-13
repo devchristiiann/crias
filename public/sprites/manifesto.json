@@ -7,17 +7,15 @@
     "ilhas": 176,
     "grupos": 1,
     "bloco": 4,
-    "saida": "79x128",
+    "cabecaX": 81,
+    "cabecaY": 15,
+    "cabecaLargura": 26,
+    "maoX": 88,
+    "maoY": 71,
+    "baseY": 122,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/rob-1-robo-sucata.png",
-    "kb": 1.7,
-    "ancoraCabeca": [
-      40,
-      0
-    ],
-    "ancoraMao": [
-      68,
-      74
-    ]
+    "kb": 1.4
   },
   {
     "id": "pes-3",
@@ -26,17 +24,15 @@
     "ilhas": 3,
     "grupos": 1,
     "bloco": 4,
-    "saida": "102x128",
+    "cabecaX": 67,
+    "cabecaY": 11,
+    "cabecaLargura": 34,
+    "maoX": 109,
+    "maoY": 76,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-3-ana-ferreira.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      51,
-      0
-    ],
-    "ancoraMao": [
-      88,
-      74
-    ]
+    "kb": 1.7
   },
   {
     "id": "anp-4",
@@ -45,17 +41,15 @@
     "ilhas": 11,
     "grupos": 1,
     "bloco": 4,
-    "saida": "89x128",
+    "cabecaX": 64,
+    "cabecaY": 6,
+    "cabecaLargura": 31,
+    "maoX": 104,
+    "maoY": 68,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anp-4-lobo.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      45,
-      0
-    ],
-    "ancoraMao": [
-      77,
-      74
-    ]
+    "kb": 2.5
   },
   {
     "id": "pes-5",
@@ -64,17 +58,15 @@
     "ilhas": 96,
     "grupos": 1,
     "bloco": 4,
-    "saida": "67x128",
+    "cabecaX": 66,
+    "cabecaY": 11,
+    "cabecaLargura": 49,
+    "maoX": 90,
+    "maoY": 76,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-5-crianca-aventureira.png",
-    "kb": 1.4,
-    "ancoraCabeca": [
-      34,
-      0
-    ],
-    "ancoraMao": [
-      58,
-      74
-    ]
+    "kb": 1.4
   },
   {
     "id": "rob-4",
@@ -83,17 +75,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "50x128",
+    "cabecaX": 65,
+    "cabecaY": 15,
+    "cabecaLargura": 26,
+    "maoX": 85,
+    "maoY": 72,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/rob-4-androide-polido.png",
-    "kb": 1.1,
-    "ancoraCabeca": [
-      25,
-      0
-    ],
-    "ancoraMao": [
-      43,
-      74
-    ]
+    "kb": 1.3
   },
   {
     "id": "anf-7",
@@ -102,17 +92,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
+    "cabecaX": 75,
+    "cabecaY": 21,
+    "cabecaLargura": 48,
+    "maoX": 114,
+    "maoY": 85,
+    "baseY": 123,
     "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-7-filhote-de-foca.png",
-    "kb": 2.4,
-    "ancoraCabeca": [
-      64,
-      0
-    ],
-    "ancoraMao": [
-      110,
-      74
-    ]
+    "kb": 1.9
   },
   {
     "id": "deu-1",
@@ -121,17 +109,15 @@
     "ilhas": 24,
     "grupos": 1,
     "bloco": 4,
-    "saida": "78x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 44,
+    "maoX": 98,
+    "maoY": 75,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/deu-1-mini-zeus.png",
-    "kb": 2.1,
-    "ancoraCabeca": [
-      39,
-      0
-    ],
-    "ancoraMao": [
-      67,
-      74
-    ]
+    "kb": 1.7
   },
   {
     "id": "anf-1",
@@ -141,17 +127,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "92x128",
+    "cabecaX": 65,
+    "cabecaY": 20,
+    "cabecaLargura": 50,
+    "maoX": 101,
+    "maoY": 79,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-1-panda.png",
-    "kb": 2.4,
-    "ancoraCabeca": [
-      46,
-      0
-    ],
-    "ancoraMao": [
-      79,
-      74
-    ]
+    "kb": 1.2
   },
   {
     "id": "deu-5",
@@ -160,17 +144,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "97x128",
+    "cabecaX": 64,
+    "cabecaY": 11,
+    "cabecaLargura": 53,
+    "maoX": 90,
+    "maoY": 76,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/deu-5-medusa.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      49,
-      0
-    ],
-    "ancoraMao": [
-      83,
-      74
-    ]
+    "kb": 2
   },
   {
     "id": "anf-2",
@@ -179,17 +161,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 18,
-    "saida": "96x96",
+    "cabecaX": 66,
+    "cabecaY": 22,
+    "cabecaLargura": 56,
+    "maoX": 115,
+    "maoY": 81,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-2-raposa.png",
-    "kb": 1.6,
-    "ancoraCabeca": [
-      48,
-      0
-    ],
-    "ancoraMao": [
-      83,
-      56
-    ]
+    "kb": 1.7
   },
   {
     "id": "deu-2",
@@ -198,17 +178,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "104x128",
+    "cabecaX": 66,
+    "cabecaY": 10,
+    "cabecaLargura": 40,
+    "maoX": 110,
+    "maoY": 80,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/deu-2-mini-thor.png",
-    "kb": 1.7,
-    "ancoraCabeca": [
-      52,
-      0
-    ],
-    "ancoraMao": [
-      89,
-      74
-    ]
+    "kb": 1.6
   },
   {
     "id": "mof-5",
@@ -217,17 +195,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "96x128",
+    "cabecaX": 64,
+    "cabecaY": 18,
+    "cabecaLargura": 56,
+    "maoX": 99,
+    "maoY": 75,
+    "baseY": 116,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/mof-5-morceguinho.png",
-    "kb": 2.4,
-    "ancoraCabeca": [
-      48,
-      0
-    ],
-    "ancoraMao": [
-      83,
-      74
-    ]
+    "kb": 2
   },
   {
     "id": "pes-2",
@@ -236,17 +212,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "110x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 38,
+    "maoX": 112,
+    "maoY": 76,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-2-mago-barrigudo.png",
-    "kb": 1.9,
-    "ancoraCabeca": [
-      55,
-      0
-    ],
-    "ancoraMao": [
-      95,
-      74
-    ]
+    "kb": 1.7
   },
   {
     "id": "anf-4",
@@ -255,17 +229,15 @@
     "ilhas": 34,
     "grupos": 1,
     "bloco": 4,
-    "saida": "87x128",
+    "cabecaX": 64,
+    "cabecaY": 20,
+    "cabecaLargura": 44,
+    "maoX": 99,
+    "maoY": 83,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-4-capivara.png",
-    "kb": 2.3,
-    "ancoraCabeca": [
-      44,
-      0
-    ],
-    "ancoraMao": [
-      75,
-      74
-    ]
+    "kb": 1.6
   },
   {
     "id": "fol-2",
@@ -274,17 +246,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "62x128",
+    "cabecaX": 63,
+    "cabecaY": 12,
+    "cabecaLargura": 29,
+    "maoX": 88,
+    "maoY": 79,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/fol-2-curupira.png",
-    "kb": 1.2,
-    "ancoraCabeca": [
-      31,
-      0
-    ],
-    "ancoraMao": [
-      53,
-      74
-    ]
+    "kb": 1.5
   },
   {
     "id": "fol-4",
@@ -293,17 +263,15 @@
     "ilhas": 4,
     "grupos": 1,
     "bloco": 4,
-    "saida": "128x126",
+    "cabecaX": 63,
+    "cabecaY": 9,
+    "cabecaLargura": 32,
+    "maoX": 103,
+    "maoY": 72,
+    "baseY": 120,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/fol-4-boitata.png",
-    "kb": 2.5,
-    "ancoraCabeca": [
-      64,
-      0
-    ],
-    "ancoraMao": [
-      110,
-      73
-    ]
+    "kb": 2.2
   },
   {
     "id": "rob-3",
@@ -312,17 +280,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 17,
-    "saida": "96x61",
+    "cabecaX": 64,
+    "cabecaY": 13,
+    "cabecaLargura": 56,
+    "maoX": 127,
+    "maoY": 74,
+    "baseY": 119,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/rob-3-drone-mensageiro.png",
-    "kb": 1.1,
-    "ancoraCabeca": [
-      48,
-      0
-    ],
-    "ancoraMao": [
-      83,
-      35
-    ]
+    "kb": 1.5
   },
   {
     "id": "mof-3",
@@ -331,17 +297,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "119x128",
+    "cabecaX": 64,
+    "cabecaY": 18,
+    "cabecaLargura": 45,
+    "maoX": 109,
+    "maoY": 77,
+    "baseY": 116,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/mof-3-fantasminha.png",
-    "kb": 3.3,
-    "ancoraCabeca": [
-      60,
-      0
-    ],
-    "ancoraMao": [
-      102,
-      74
-    ]
+    "kb": 2.3
   },
   {
     "id": "pes-6",
@@ -350,17 +314,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "81x128",
+    "cabecaX": 64,
+    "cabecaY": 10,
+    "cabecaLargura": 28,
+    "maoX": 92,
+    "maoY": 81,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-6-corredora.png",
-    "kb": 1.3,
-    "ancoraCabeca": [
-      41,
-      0
-    ],
-    "ancoraMao": [
-      70,
-      74
-    ]
+    "kb": 1.4
   },
   {
     "id": "anp-2",
@@ -369,17 +331,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "102x128",
+    "cabecaX": 74,
+    "cabecaY": 6,
+    "cabecaLargura": 43,
+    "maoX": 110,
+    "maoY": 72,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anp-2-urso-ranzinza.png",
-    "kb": 3.2,
-    "ancoraCabeca": [
-      51,
-      0
-    ],
-    "ancoraMao": [
-      88,
-      74
-    ]
+    "kb": 2.6
   },
   {
     "id": "pes-4",
@@ -388,17 +348,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "85x128",
+    "cabecaX": 67,
+    "cabecaY": 10,
+    "cabecaLargura": 26,
+    "maoX": 99,
+    "maoY": 81,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-4-vovo-guerreira.png",
-    "kb": 1.8,
-    "ancoraCabeca": [
-      43,
-      0
-    ],
-    "ancoraMao": [
-      73,
-      74
-    ]
+    "kb": 2
   },
   {
     "id": "anf-5",
@@ -407,17 +365,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "110x128",
+    "cabecaX": 65,
+    "cabecaY": 20,
+    "cabecaLargura": 39,
+    "maoX": 108,
+    "maoY": 82,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-5-pinguim.png",
-    "kb": 1,
-    "ancoraCabeca": [
-      55,
-      0
-    ],
-    "ancoraMao": [
-      95,
-      74
-    ]
+    "kb": 1
   },
   {
     "id": "mop-6",
@@ -426,17 +382,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 21,
-    "saida": "94x81",
+    "cabecaX": 66,
+    "cabecaY": 6,
+    "cabecaLargura": 56,
+    "maoX": 127,
+    "maoY": 68,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/mop-6-golem-de-pedra.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      47,
-      0
-    ],
-    "ancoraMao": [
-      81,
-      47
-    ]
+    "kb": 3
   },
   {
     "id": "pes-1",
@@ -445,17 +399,15 @@
     "ilhas": 100,
     "grupos": 1,
     "bloco": 4,
-    "saida": "99x128",
+    "cabecaX": 65,
+    "cabecaY": 11,
+    "cabecaLargura": 28,
+    "maoX": 107,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/pes-1-guerreira-robusta.png",
-    "kb": 1.8,
-    "ancoraCabeca": [
-      50,
-      0
-    ],
-    "ancoraMao": [
-      85,
-      74
-    ]
+    "kb": 1.8
   },
   {
     "id": "mop-4",
@@ -464,17 +416,15 @@
     "ilhas": 309,
     "grupos": 2,
     "bloco": 4,
-    "saida": "67x128",
+    "cabecaX": 65,
+    "cabecaY": 6,
+    "cabecaLargura": 26,
+    "maoX": 92,
+    "maoY": 71,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/mop-4-esqueleto.png",
-    "kb": 1.6,
-    "ancoraCabeca": [
-      34,
-      0
-    ],
-    "ancoraMao": [
-      58,
-      74
-    ]
+    "kb": 1.5
   },
   {
     "id": "mop-3",
@@ -483,17 +433,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 20,
-    "saida": "95x86",
+    "cabecaX": 65,
+    "cabecaY": 6,
+    "cabecaLargura": 47,
+    "maoX": 127,
+    "maoY": 72,
+    "baseY": 122,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/mop-3-slime-mutante.png",
-    "kb": 1.6,
-    "ancoraCabeca": [
-      48,
-      0
-    ],
-    "ancoraMao": [
-      82,
-      50
-    ]
+    "kb": 2.6
   },
   {
     "id": "deu-6",
@@ -502,17 +450,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 18,
-    "saida": "96x89",
+    "cabecaX": 66,
+    "cabecaY": 12,
+    "cabecaLargura": 32,
+    "maoX": 114,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/deu-6-kitsune.png",
-    "kb": 1.6,
-    "ancoraCabeca": [
-      48,
-      0
-    ],
-    "ancoraMao": [
-      83,
-      52
-    ]
+    "kb": 2
   },
   {
     "id": "anf-3",
@@ -521,17 +467,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "67x128",
+    "cabecaX": 67,
+    "cabecaY": 20,
+    "cabecaLargura": 44,
+    "maoX": 88,
+    "maoY": 80,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anf-3-coelho.png",
-    "kb": 1.6,
-    "ancoraCabeca": [
-      34,
-      0
-    ],
-    "ancoraMao": [
-      58,
-      74
-    ]
+    "kb": 1.3
   },
   {
     "id": "deu-4",
@@ -540,17 +484,15 @@
     "ilhas": 33,
     "grupos": 1,
     "bloco": 4,
-    "saida": "107x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 37,
+    "maoX": 111,
+    "maoY": 73,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/deu-4-poseidon.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      54,
-      0
-    ],
-    "ancoraMao": [
-      92,
-      74
-    ]
+    "kb": 2
   },
   {
     "id": "anp-1",
@@ -559,17 +501,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "94x128",
+    "cabecaX": 59,
+    "cabecaY": 6,
+    "cabecaLargura": 38,
+    "maoX": 91,
+    "maoY": 79,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anp-1-t-rex.png",
-    "kb": 1.9,
-    "ancoraCabeca": [
-      47,
-      0
-    ],
-    "ancoraMao": [
-      81,
-      74
-    ]
+    "kb": 1.9
   },
   {
     "id": "anp-6",
@@ -578,17 +518,15 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "82x128",
+    "cabecaX": 53,
+    "cabecaY": 6,
+    "cabecaLargura": 35,
+    "maoX": 93,
+    "maoY": 68,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/anp-6-aguia.png",
-    "kb": 1.4,
-    "ancoraCabeca": [
-      41,
-      0
-    ],
-    "ancoraMao": [
-      71,
-      74
-    ]
+    "kb": 1.1
   },
   {
     "id": "atl-1",
@@ -597,17 +535,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "112x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 52,
+    "maoX": 95,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/atl-1-camisa-10.png",
-    "kb": 2.3,
-    "ancoraCabeca": [
-      56,
-      0
-    ],
-    "ancoraMao": [
-      96,
-      74
-    ]
+    "kb": 1.9
   },
   {
     "id": "atl-2",
@@ -616,17 +552,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "109x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 45,
+    "maoX": 97,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/atl-2-lenda-do-garrafao.png",
-    "kb": 2.3,
-    "ancoraCabeca": [
-      55,
-      0
-    ],
-    "ancoraMao": [
-      94,
-      74
-    ]
+    "kb": 1.9
   },
   {
     "id": "atl-3",
@@ -635,17 +569,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "114x128",
+    "cabecaX": 64,
+    "cabecaY": 10,
+    "cabecaLargura": 47,
+    "maoX": 94,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/atl-3-rei-da-quadra.png",
-    "kb": 2.5,
-    "ancoraCabeca": [
-      57,
-      0
-    ],
-    "ancoraMao": [
-      98,
-      74
-    ]
+    "kb": 2.2
   },
   {
     "id": "atl-4",
@@ -654,17 +586,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "114x128",
+    "cabecaX": 63,
+    "cabecaY": 10,
+    "cabecaLargura": 49,
+    "maoX": 94,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/atl-4-cabeceador.png",
-    "kb": 2.2,
-    "ancoraCabeca": [
-      57,
-      0
-    ],
-    "ancoraMao": [
-      98,
-      74
-    ]
+    "kb": 1.6
   },
   {
     "id": "atl-5",
@@ -673,17 +603,15 @@
     "ilhas": 2,
     "grupos": 2,
     "bloco": 4,
-    "saida": "109x128",
+    "cabecaX": 65,
+    "cabecaY": 10,
+    "cabecaLargura": 49,
+    "maoX": 105,
+    "maoY": 77,
+    "baseY": 123,
+    "saida": "128x128",
     "arquivo": "/sprites/personagens/atl-5-sorriso-craque.png",
-    "kb": 2.5,
-    "ancoraCabeca": [
-      55,
-      0
-    ],
-    "ancoraMao": [
-      94,
-      74
-    ]
+    "kb": 2.2
   },
   {
     "id": "cen-4",
@@ -818,7 +746,8 @@
     "bloco": 4,
     "saida": "40x96",
     "arquivo": "/sprites/itens/ace-14-raio.png",
-    "kb": 0.4
+    "kb": 0.4,
+    "encaixe": "mao"
   },
   {
     "id": "ace-15",
@@ -829,7 +758,8 @@
     "bloco": 18,
     "saida": "94x72",
     "arquivo": "/sprites/itens/ace-15-capa.png",
-    "kb": 1.7
+    "kb": 1.7,
+    "encaixe": "costas"
   },
   {
     "id": "ace-3",
@@ -840,7 +770,8 @@
     "bloco": 18,
     "saida": "96x83",
     "arquivo": "/sprites/itens/ace-3-capacete-viking.png",
-    "kb": 1.6
+    "kb": 1.6,
+    "encaixe": "cabeca"
   },
   {
     "id": "ace-2",
@@ -851,7 +782,8 @@
     "bloco": 17,
     "saida": "96x81",
     "arquivo": "/sprites/itens/ace-2-chapeu-de-mago.png",
-    "kb": 0.9
+    "kb": 0.9,
+    "encaixe": "cabeca"
   },
   {
     "id": "ace-1",
@@ -862,7 +794,8 @@
     "bloco": 20,
     "saida": "96x66",
     "arquivo": "/sprites/itens/ace-1-coroa.png",
-    "kb": 1.2
+    "kb": 1.2,
+    "encaixe": "cabeca"
   },
   {
     "id": "ace-10",
@@ -873,7 +806,8 @@
     "bloco": 4,
     "saida": "23x96",
     "arquivo": "/sprites/itens/ace-10-cajado.png",
-    "kb": 0.7
+    "kb": 0.7,
+    "encaixe": "mao"
   },
   {
     "id": "ace-11",
@@ -884,7 +818,8 @@
     "bloco": 4,
     "saida": "62x96",
     "arquivo": "/sprites/itens/ace-11-martelo.png",
-    "kb": 0.7
+    "kb": 0.7,
+    "encaixe": "mao"
   },
   {
     "id": "ace-12",
@@ -895,7 +830,8 @@
     "bloco": 4,
     "saida": "79x96",
     "arquivo": "/sprites/itens/ace-12-espada-de-raio.png",
-    "kb": 0.9
+    "kb": 0.9,
+    "encaixe": "mao"
   },
   {
     "id": "ace-16",
@@ -906,6 +842,7 @@
     "bloco": 20,
     "saida": "96x78",
     "arquivo": "/sprites/itens/ace-16-asas.png",
-    "kb": 1.8
+    "kb": 1.8,
+    "encaixe": "costas"
   }
 ]

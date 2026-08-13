@@ -25,7 +25,9 @@ const linhas=m.map(r=>{
   const preco=PRECO[r.id]
   if(preco===undefined) throw new Error('sem preco: '+r.id)
   const slot=SLOT(r.id)
-  const extra=r.ancoraCabeca?`, ancoraCabeca: [${r.ancoraCabeca}], ancoraMao: [${r.ancoraMao}]`:''
+  const extra=r.cabecaX!==undefined
+    ? `, cabecaX: ${r.cabecaX}, cabecaY: ${r.cabecaY}, cabecaLargura: ${r.cabecaLargura}, maoX: ${r.maoX}, maoY: ${r.maoY}, baseY: ${r.baseY}`
+    : (r.encaixe ? `, encaixe: '${r.encaixe}'` : '')
   return `  { id: '${r.id}', nome: ${JSON.stringify(r.nome)}, slot: '${slot}', familia: ${JSON.stringify(fam)}, custo: ${preco}, arquivo: '${r.arquivo}', largura: ${r.saida.split('x')[0]}, altura: ${r.saida.split('x')[1]}${extra} },`
 }).sort()
 
@@ -50,9 +52,19 @@ export interface Peca {
   arquivo: string
   largura: number
   altura: number
-  /** Onde encostar chapeu e item de mao, em pixels do proprio sprite. */
-  ancoraCabeca?: readonly [number, number]
-  ancoraMao?: readonly [number, number]
+  /**
+   * Medidas do personagem, em pixels da tela padrao de 128 por 128. Saem
+   * medidas no pixel pelo pipeline, nao chutadas: e o que faz um chapeu
+   * desenhado para cabeca humana sentar tambem num slime.
+   */
+  cabecaX?: number
+  cabecaY?: number
+  cabecaLargura?: number
+  maoX?: number
+  maoY?: number
+  baseY?: number
+  /** Onde o acessorio encosta. Sem isso, espada e cajado iam parar na testa. */
+  encaixe?: 'cabeca' | 'mao' | 'costas'
 }
 
 export const CATALOGO: readonly Peca[] = [
@@ -68,6 +80,8 @@ export function pecasDoSlot(slot: Slot) {
 }
 
 /** Bases 16x16 antigas. Continuam desenhando para nao apagar avatar de quem ja escolheu. */
+export const LADO_SPRITE = 128
+
 export const BASES_ANTIGAS = ['base-01', 'base-02', 'base-03', 'base-04', 'base-05', 'base-06']
 `
 writeFileSync(RAIZ+'/src/lib/catalogo.ts', ts)
