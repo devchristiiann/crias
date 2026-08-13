@@ -124,16 +124,26 @@ test.describe.serial('percurso mobile em 360px', () => {
     await page.getByLabel('O que você vai fazer').fill('Beber água')
     await page.getByRole('button', { name: 'Criar e continuar' }).click()
 
-    // Passo 3 de 4: notificacoes.
-    await expect(page.getByRole('heading', { name: 'Notificações' })).toBeVisible()
-    await verificarSemTopo(page, '/onboarding passo 3 notificacoes')
-    await page.getByRole('button', { name: 'Deixar para depois' }).click()
-
-    // Passo 4 de 4: grupo.
+    // Passo 3: grupo. A permissao de notificacao saiu daqui de proposito e
+    // hoje vive em Ajustes, entao ela nao pode voltar a aparecer no onboarding.
     await expect(page.getByRole('heading', { name: 'Chame alguém' })).toBeVisible()
-    await verificarSemTopo(page, '/onboarding passo 4 grupo')
+    await expect(page.getByRole('button', { name: /Ativar notificações/ })).toHaveCount(0)
+    await verificarSemTopo(page, '/onboarding passo 3 grupo')
     await page.getByLabel('Criar um grupo').fill(`Turma ${carimbo}`)
     await page.getByRole('button', { name: 'Criar grupo' }).click()
+
+    // Passo 4: tour guiado, uma tela por toque.
+    await expect(page.getByRole('heading', { name: 'Conheça o app' })).toBeVisible()
+    await verificarSemTopo(page, '/onboarding passo 4 tour')
+    for (let i = 0; i < 4; i += 1) {
+      await page.getByRole('button', { name: /Ver a próxima tela|Terminar o tour/ }).click()
+    }
+
+    // Passo 5: instalar. O navegador do teste nao roda instalado, entao o passo
+    // aparece; num aparelho com o app instalado ele e pulado.
+    await expect(page.getByRole('heading', { name: 'Instale o Crias' })).toBeVisible()
+    await verificarSemTopo(page, '/onboarding passo 5 instalar')
+    await page.getByRole('button', { name: 'Entrar no app' }).click()
 
     // Aba Hoje.
     await page.waitForURL('**/hoje', { timeout: 30_000 })
@@ -162,17 +172,76 @@ test.describe.serial('percurso mobile em 360px', () => {
     await expect(page.getByRole('heading', { name: 'Loja' })).toBeVisible()
     await verificarTela(page, '/loja')
 
-    // Aba Perfil.
-    await page.getByRole('link', { name: 'Perfil' }).click()
-    await page.waitForURL('**/perfil')
-    await expect(page.getByRole('heading', { name: NOME })).toBeVisible()
-    await verificarTela(page, '/perfil')
+    // Trilha, o botao redondo no centro do menu.
+    await page.getByRole('link', { name: 'Trilha' }).click()
+    await page.waitForURL('**/trilha')
+    await expect(page.getByRole('heading', { name: 'Sua trilha' })).toBeVisible()
+    await verificarTela(page, '/trilha')
+
+    // Ajustes.
+    await page.getByRole('link', { name: 'Ajustes' }).click()
+    await page.waitForURL('**/configuracoes')
+    await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
+    await expect(page.getByText(EMAIL)).toBeVisible()
+    await verificarTela(page, '/configuracoes')
+
+    await verificarMenuFixo(page, '/configuracoes')
 
     // Volta para Hoje: rota trocada tem que voltar ao topo.
-    await page.mouse.wheel(0, 600)
     await page.getByRole('link', { name: 'Hoje' }).click()
     await page.waitForURL('**/hoje')
     await expect(page.getByRole('heading', { name: 'Hoje' })).toBeVisible()
-    await verificarTela(page, '/hoje apos rolar em /perfil')
+    await verificarTela(page, '/hoje apos rolar em /configuracoes')
+
+    await verificarMenuFixo(page, '/hoje')
   })
 })
+
+/**
+ * O menu inferior tem que continuar colado no rodape depois de rolar, e nenhum
+ * conteudo pode terminar por baixo dele.
+ *
+ * Bug real ja visto no Safari do iPhone: com `position: fixed` e o body rolando,
+ * o menu descia junto com a pagina e os ultimos elementos ficavam escondidos.
+ */
+async function verificarMenuFixo(page: Page, tela: string) {
+  const conteudo = page.locator('#conteudo')
+  const nav = page.locator('nav').last()
+
+  const antes = await nav.boundingBox()
+  await conteudo.evaluate((el) => el.scrollBy(0, 2000))
+  await page.waitForTimeout(300)
+  const depois = await nav.boundingBox()
+
+  expect(antes, `${tela}: menu deveria existir`).toBeTruthy()
+  expect(depois, `${tela}: menu deveria continuar na tela apos rolar`).toBeTruthy()
+  expect(
+    Math.abs((depois?.y ?? 0) - (antes?.y ?? 0)),
+    `${tela}: o menu se moveu ao rolar a pagina`,
+  ).toBeLessThan(2)
+
+  const altura = page.viewportSize()?.height ?? 0
+  expect(
+    (depois?.y ?? 0) + (depois?.height ?? 0),
+    `${tela}: o menu nao esta encostado no rodape`,
+  ).toBeLessThanOrEqual(altura + 1)
+
+  // A area que rola tem que terminar onde o menu comeca. Enquanto isso valer,
+  // nenhum conteudo consegue ficar escondido atras dele: o que passa da borda
+  // e recortado pela propria area, e o usuario alcanca rolando.
+  const caixaConteudo = await conteudo.boundingBox()
+  expect(
+    (caixaConteudo?.y ?? 0) + (caixaConteudo?.height ?? 0),
+    `${tela}: a area de conteudo invade o espaco do menu`,
+  ).toBeLessThanOrEqual((depois?.y ?? 0) + 1)
+
+  // E o fim da lista tem que ser alcancavel: rolando ate embaixo, o ultimo
+  // elemento precisa terminar acima do menu.
+  const fimVisivel = await conteudo.evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+    const ultimo = el.lastElementChild?.lastElementChild
+    if (!ultimo) return true
+    return ultimo.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1
+  })
+  expect(fimVisivel, `${tela}: o fim do conteudo nao e alcancavel`).toBe(true)
+}

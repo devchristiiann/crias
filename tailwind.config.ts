@@ -31,6 +31,38 @@ export default {
       fontFamily: {
         sans: ['Bricolage Grotesque', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        /* Respiracao do personagem parado. Sem isso a trilha parece uma foto. */
+        bob: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-3px)' },
+        },
+        /* Salto entre nos. O squash e o stretch dao peso ao pulo sem biblioteca. */
+        pulo: {
+          '0%': { transform: 'translate(var(--pulo-x), var(--pulo-y)) scale(1.12, 0.88)' },
+          '30%': {
+            transform:
+              'translate(calc(var(--pulo-x) * 0.5), calc(var(--pulo-y) * 0.5 - 24px)) scale(0.88, 1.16)',
+          },
+          '70%': { transform: 'translate(0, 0) scale(1.16, 0.84)' },
+          '85%': { transform: 'translate(0, -4px) scale(0.96, 1.04)' },
+          '100%': { transform: 'translate(0, 0) scale(1, 1)' },
+        },
+        pulso: {
+          '0%': { transform: 'translate(-50%, -50%) scale(1)', opacity: '0.6' },
+          '100%': { transform: 'translate(-50%, -50%) scale(1.55)', opacity: '0' },
+        },
+        balanco: {
+          '0%, 100%': { transform: 'translate(-50%, -50%) rotate(-6deg)' },
+          '50%': { transform: 'translate(-50%, -50%) rotate(6deg)' },
+        },
+      },
+      animation: {
+        bob: 'bob 2.6s ease-in-out infinite',
+        pulo: 'pulo 0.6s cubic-bezier(0.33, 1, 0.68, 1) 1',
+        pulso: 'pulso 1.8s ease-out infinite',
+        balanco: 'balanco 2.8s ease-in-out infinite',
+      },
     },
   },
   plugins: [animate],

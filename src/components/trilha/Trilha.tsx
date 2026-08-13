@@ -1,14 +1,23 @@
 import { Check, Gift } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { diaEMes } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
-const PASSOS_ADIANTE = 3
-const PASSOS_ATRAS = 7
+const PASSOS_ADIANTE = 4
+const PASSOS_ATRAS = 14
 const NOS_POR_BAU = 7
 
+/** Geometria da trilha, em pixels. A janela e absoluta, entao tudo sai daqui. */
+const NO = 56
+const NO_BAU = 64
+const ESPACO = 74
+const AVATAR = 44
 /** Serpentina: o deslocamento horizontal se repete a cada quatro nos. */
-const DESLOCAMENTO = ['translate-x-0', 'translate-x-10', 'translate-x-16', 'translate-x-10']
+const DESLOCAMENTO = [0, 36, 52, 36]
+const COLUNA_DATA = 34
+const LARGURA = 168
+const ALTURA_JANELA = 340
 
 type Estado = 'conquistado' | 'atual' | 'futuro'
 
@@ -16,6 +25,11 @@ interface No {
   indice: number
   estado: Estado
   data?: string
+}
+
+/** Centro horizontal do no. O maior raio entra na conta para nada sair da faixa. */
+function centroX(indice: number): number {
+  return NO_BAU / 2 + DESLOCAMENTO[indice % DESLOCAMENTO.length]
 }
 
 function montarNos(diasProdutivos: string[]): No[] {
@@ -46,57 +60,149 @@ export function Trilha({
   avatarBase: string
   itemEquipado: string | null
 }) {
+  const conquistados = diasProdutivos.length
   const nos = montarNos(diasProdutivos)
+  const altura = nos.length * ESPACO
+  const centroY = (posicao: number) => posicao * ESPACO + ESPACO / 2
+  // O no atual fica logo abaixo do bloco de futuros, sempre na mesma posicao.
+  const yAtual = centroY(PASSOS_ADIANTE)
+
+  const janela = useRef<HTMLDivElement>(null)
+  const anterior = useRef(conquistados)
+  const [pulo, setPulo] = useState<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    // So um passo de cada vez vira pulo. Isso descarta o salto de 0 ate o valor
+    // real na primeira carga da consulta, que nao e uma conquista do usuario.
+    if (conquistados === anterior.current + 1) {
+      setPulo({
+        x: centroX(conquistados) - centroX(conquistados + 1),
+        y: ESPACO,
+      })
+    }
+    anterior.current = conquistados
+  }, [conquistados])
+
+  useEffect(() => {
+    const alvo = janela.current
+    if (!alvo) return
+    alvo.scrollTop = yAtual - alvo.clientHeight / 2
+  }, [yAtual, conquistados])
+
+  const pontos = nos.map((no, posicao) => `${centroX(no.indice)},${centroY(posicao)}`)
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm">
-      <ol className="mx-auto flex w-fit flex-col items-start gap-1">
-        {nos.map((no, posicao) => {
-          const bau = no.indice % NOS_POR_BAU === 0
-          const ultimo = posicao === nos.length - 1
+      <div
+        ref={janela}
+        className="overflow-y-auto overflow-x-hidden overscroll-contain motion-safe:scroll-smooth"
+        style={{ maxHeight: ALTURA_JANELA }}
+      >
+        <ol className="relative mx-auto" style={{ width: LARGURA, height: altura }}>
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            width={LARGURA}
+            height={altura}
+          >
+            <polyline
+              points={pontos.join(' ')}
+              fill="none"
+              strokeWidth={10}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="stroke-muted"
+            />
+            {/* Trecho ja percorrido, do no mais antigo ate o atual. */}
+            <polyline
+              points={pontos.slice(PASSOS_ADIANTE).join(' ')}
+              fill="none"
+              strokeWidth={10}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="stroke-primary/45"
+            />
+          </svg>
 
-          return (
-            <li
-              key={no.indice}
-              className={cn(
-                'flex items-center gap-3',
-                DESLOCAMENTO[no.indice % DESLOCAMENTO.length],
-              )}
-            >
-              <div className="flex flex-col items-center">
+          {nos.map((no, posicao) => {
+            const bau = no.indice % NOS_POR_BAU === 0
+            const lado = bau ? NO_BAU : NO
+            const x = centroX(no.indice)
+            const y = centroY(posicao)
+
+            return (
+              <li key={no.indice}>
                 <span
-                  aria-label={`Nó ${no.indice}`}
+                  aria-label={
+                    no.data ? `Dia ${no.indice}, ${diaEMes(no.data)}` : `Dia ${no.indice}`
+                  }
                   className={cn(
-                    'flex size-11 items-center justify-center rounded-full border-2 text-sm font-semibold',
+                    'absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-sm font-semibold',
+                    bau && 'motion-safe:animate-balanco',
                     no.estado === 'conquistado' &&
                       (bau
-                        ? 'border-warning bg-warning text-warning-foreground'
-                        : 'border-primary bg-primary text-primary-foreground'),
+                        ? 'border-warning bg-warning text-warning-foreground shadow-[0_0_16px_hsl(var(--warning)/0.55)]'
+                        : 'border-primary bg-primary text-primary-foreground shadow-[0_0_12px_hsl(var(--primary)/0.45)]'),
                     no.estado === 'atual' &&
-                      'animate-pulse border-primary bg-primary/15 text-primary',
-                    no.estado === 'futuro' && 'border-dashed border-muted text-muted-foreground',
+                      (bau
+                        ? 'border-warning bg-warning/25 text-warning shadow-[0_0_16px_hsl(var(--warning)/0.5)]'
+                        : 'border-primary bg-primary/20 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.4)]'),
+                    no.estado === 'futuro' &&
+                      (bau
+                        ? 'border-warning/60 bg-warning/15 text-warning'
+                        : 'border-dashed border-muted-foreground/40 bg-background text-muted-foreground'),
                   )}
+                  style={{ left: x, top: y, width: lado, height: lado }}
                 >
-                  {no.estado === 'conquistado' && bau && <Gift className="size-5" />}
-                  {no.estado === 'conquistado' && !bau && <Check className="size-5" />}
-                  {no.estado !== 'conquistado' && (bau ? <Gift className="size-5" /> : no.indice)}
+                  {bau ? (
+                    <Gift className="size-7" />
+                  ) : no.estado === 'conquistado' ? (
+                    <Check className="size-5" />
+                  ) : (
+                    no.indice
+                  )}
                 </span>
-                {!ultimo && <span className="h-4 w-0.5 bg-border" />}
-              </div>
 
-              {no.estado === 'atual' && (
-                <Avatar base={avatarBase} item={itemEquipado} tamanho={48} />
+                {no.estado === 'atual' && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary opacity-0 motion-safe:animate-pulso"
+                    style={{ left: x, top: y, width: lado, height: lado }}
+                  />
+                )}
+
+                {no.data && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -translate-y-1/2 whitespace-nowrap text-[11px] text-muted-foreground"
+                    style={{ left: x + COLUNA_DATA, top: y }}
+                  >
+                    {diaEMes(no.data)}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+
+          <div
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+            style={{ left: centroX(conquistados + 1), top: yAtual - NO / 2 + 4 }}
+          >
+            <div
+              className={cn(
+                'origin-bottom',
+                pulo ? 'motion-safe:animate-pulo' : 'motion-safe:animate-bob',
               )}
-              {no.estado === 'conquistado' && no.data && (
-                <span className="text-xs text-muted-foreground">{diaEMes(no.data)}</span>
-              )}
-              {no.estado === 'futuro' && bau && (
-                <span className="text-xs text-muted-foreground">Baú</span>
-              )}
-            </li>
-          )
-        })}
-      </ol>
+              style={
+                pulo ? ({ '--pulo-x': `${pulo.x}px`, '--pulo-y': `${pulo.y}px` } as CSSProperties) : undefined
+              }
+              onAnimationEnd={() => setPulo(null)}
+            >
+              <Avatar base={avatarBase} item={itemEquipado} tamanho={AVATAR} />
+            </div>
+          </div>
+        </ol>
+      </div>
     </div>
   )
 }

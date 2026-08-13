@@ -9,6 +9,8 @@ import { iconeDoHabito } from '@/lib/icones'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
+const OURO_MAXIMO = 10
+
 const ICONES = [
   { id: 'target', rotulo: 'Meta' },
   { id: 'dumbbell', rotulo: 'Exercício' },
@@ -136,9 +138,13 @@ export function FormularioHabito({
           <input
             type="number"
             min={1}
-            max={100}
+            max={OURO_MAXIMO}
             value={ouroBase}
-            onChange={(e) => setOuroBase(Number(e.target.value))}
+            // Teto de 10 travado aqui e no banco. Sem teto, quem cadastra o
+            // habito define a propria recompensa e a economia perde o sentido.
+            onChange={(e) =>
+              setOuroBase(Math.min(OURO_MAXIMO, Math.max(1, Number(e.target.value) || 1)))
+            }
             className="h-11 w-full rounded-lg border border-input bg-card px-3
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
@@ -157,6 +163,6 @@ export function FormularioHabito({
 const MENSAGENS: Record<string, string> = {
   titulo_vazio: 'Escreva o que você vai fazer.',
   frequencia_invalida: 'Escolha uma frequência válida.',
-  ouro_base_invalido: 'O ouro por vez precisa ficar entre 1 e 100.',
+  ouro_base_invalido: 'O ouro por vez precisa ficar entre 1 e 10.',
   grupo_invalido: 'Você não participa desse grupo.',
 }

@@ -12,13 +12,14 @@ import { RotaProtegida } from '@/components/auth/RotaProtegida'
 import { AppShell } from '@/components/layout/AppShell'
 import { ThemeProvider } from '@/contexts/ThemeProvider'
 import { assinarPush, permissaoAtual, registrarServiceWorker, trocarAssinatura } from '@/lib/push'
+import { Configuracoes } from '@/pages/Configuracoes'
 import { Entrar } from '@/pages/Entrar'
 import { GrupoDetalhe } from '@/pages/GrupoDetalhe'
 import { Grupos } from '@/pages/Grupos'
 import { Hoje } from '@/pages/Hoje'
 import { Loja } from '@/pages/Loja'
+import { MinhaTrilha } from '@/pages/MinhaTrilha'
 import { Onboarding } from '@/pages/Onboarding'
-import { Perfil } from '@/pages/Perfil'
 import { RedefinirSenha } from '@/pages/RedefinirSenha'
 
 const queryClient = new QueryClient({
@@ -84,8 +85,13 @@ export function App() {
                 <Route path="/hoje" element={<Hoje />} />
                 <Route path="/grupos" element={<Grupos />} />
                 <Route path="/grupos/:id" element={<GrupoDetalhe />} />
+                <Route path="/trilha" element={<MinhaTrilha />} />
                 <Route path="/loja" element={<Loja />} />
-                <Route path="/perfil" element={<Perfil />} />
+                <Route path="/configuracoes" element={<Configuracoes />} />
+                {/* A trilha virou o centro do menu e a pagina de perfil se
+                    dividiu entre ela e Ajustes. O redirect mantem de pe
+                    qualquer link antigo que ja esteja por ai. */}
+                <Route path="/perfil" element={<Navigate to="/trilha" replace />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/hoje" replace />} />

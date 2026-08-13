@@ -1,27 +1,35 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BellRing, Check, Loader2, Share } from 'lucide-react'
+import { Loader2, MoreVertical, Share, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
+import { TourGuiado } from '@/components/tour/TourGuiado'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { usePerfil, type Perfil } from '@/hooks/usePerfil'
-import { assinarPush, permissaoAtual, precisaInstalarAntes, type ResultadoPush } from '@/lib/push'
+import { estaInstalado } from '@/lib/push'
 import { BASES } from '@/lib/sprites'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
-
-const TOTAL_PASSOS = 4
 
 export function Onboarding() {
   const [passo, setPasso] = useState(0)
   const navegar = useNavigate()
 
+  // Quem ja abriu pela tela de inicio nao precisa de instrucao de instalacao.
+  // Lido uma vez so: o total de passos nao pode mudar no meio do fluxo.
+  const [ensinarInstalacao] = useState(() => !estaInstalado())
+  const total = ensinarInstalacao ? 5 : 4
+
+  function irParaOApp() {
+    navegar('/hoje', { replace: true })
+  }
+
   return (
     <main className="mx-auto flex min-h-full w-full max-w-md flex-col gap-6 px-5 py-8">
-      <div className="flex gap-2" aria-label={`Passo ${passo + 1} de ${TOTAL_PASSOS}`}>
-        {Array.from({ length: TOTAL_PASSOS }, (_, i) => (
+      <div className="flex gap-2" aria-label={`Passo ${passo + 1} de ${total}`}>
+        {Array.from({ length: total }, (_, i) => (
           <span
             key={i}
             className={cn('h-1.5 flex-1 rounded-full', i <= passo ? 'bg-primary' : 'bg-muted')}
@@ -31,8 +39,11 @@ export function Onboarding() {
 
       {passo === 0 && <PassoPersonagem aoAvancar={() => setPasso(1)} />}
       {passo === 1 && <PassoHabito aoAvancar={() => setPasso(2)} />}
-      {passo === 2 && <PassoPush aoAvancar={() => setPasso(3)} />}
-      {passo === 3 && <PassoGrupo aoConcluir={() => navegar('/hoje', { replace: true })} />}
+      {passo === 2 && <PassoGrupo aoAvancar={() => setPasso(3)} />}
+      {passo === 3 && (
+        <TourGuiado aoConcluir={() => (ensinarInstalacao ? setPasso(4) : irParaOApp())} />
+      )}
+      {passo === 4 && <PassoInstalar aoConcluir={irParaOApp} />}
     </main>
   )
 }
@@ -143,95 +154,72 @@ function PassoHabito({ aoAvancar }: { aoAvancar: () => void }) {
   )
 }
 
-const TEXTO_PUSH: Record<ResultadoPush, string> = {
-  ok: 'Notificações ligadas.',
-  negado: 'Você recusou. Dá para ligar depois nas configurações do navegador.',
-  sem_suporte: 'Este navegador não aceita notificação. Tente pelo Chrome ou Safari.',
-  instalar_primeiro: 'No iPhone é preciso instalar o app antes.',
-}
-
-function PassoPush({ aoAvancar }: { aoAvancar: () => void }) {
-  const [resultado, setResultado] = useState<ResultadoPush | null>(null)
-  const precisaInstalar = precisaInstalarAntes()
-
-  const pedir = useMutation({
-    mutationFn: assinarPush,
-    onSuccess: (r) => {
-      setResultado(r)
-      if (r === 'ok') setTimeout(aoAvancar, 600)
-    },
-  })
-
+/**
+ * Ultimo passo: ensinar a instalar. A permissao de notificacao nao e pedida
+ * aqui de proposito. Ela vive na pagina de Configuracoes, e no iPhone so
+ * funciona depois do app instalado na tela de inicio.
+ */
+function PassoInstalar({ aoConcluir }: { aoConcluir: () => void }) {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Notificações</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Instale o Crias</h1>
         <p className="text-sm text-muted-foreground">
-          É o que faz você lembrar. Sem elas, o app vira uma lista esquecida.
+          Na tela de início ele abre como app, em janela própria, e consegue avisar você na hora
+          do hábito.
         </p>
       </header>
 
-      <div className="flex justify-center py-4">
-        <BellRing className="size-20 text-primary" strokeWidth={1.2} />
+      <div className="flex justify-center py-2">
+        <Smartphone className="size-20 text-primary" strokeWidth={1.2} />
       </div>
 
-      {precisaInstalar ? (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <p className="flex items-center gap-2 text-sm font-medium">
-            <Share className="size-4" />
-            Instale o Crias na tela de início
-          </p>
-          <ol className="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-            <li>Toque no botão de compartilhar do Safari.</li>
-            <li>Escolha Adicionar à Tela de Início.</li>
-            <li>Abra o Crias pelo ícone e volte aqui.</li>
-          </ol>
-          <p className="text-sm text-muted-foreground">
-            O iPhone só entrega notificação para app instalado. É regra da Apple, não do Crias.
-          </p>
-        </div>
-      ) : (
-        <Botao
-          tamanho="lg"
-          className="w-full"
-          carregando={pedir.isPending}
-          onClick={() => pedir.mutate()}
-        >
-          {permissaoAtual() === 'granted' ? 'Reativar notificações' : 'Ativar notificações'}
-        </Botao>
-      )}
-
-      {resultado && (
-        <p
-          className={cn(
-            'flex items-center gap-2 text-sm',
-            resultado === 'ok' ? 'text-success' : 'text-muted-foreground',
-          )}
-        >
-          {resultado === 'ok' && <Check className="size-4" />}
-          {TEXTO_PUSH[resultado]}
+      <div className="space-y-2 rounded-lg border border-border bg-card p-4">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Share className="size-4" />
+          No iPhone
         </p>
-      )}
+        <ol className="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+          <li>Toque no botão de compartilhar do Safari.</li>
+          <li>Escolha Adicionar à Tela de Início.</li>
+        </ol>
+      </div>
 
-      <Botao variante="fantasma" className="w-full" onClick={aoAvancar}>
-        {resultado === 'ok' ? 'Continuar' : 'Deixar para depois'}
+      <div className="space-y-2 rounded-lg border border-border bg-card p-4">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <MoreVertical className="size-4" />
+          No Android
+        </p>
+        <ol className="list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+          <li>Abra o menu do navegador.</li>
+          <li>Escolha Instalar aplicativo.</li>
+        </ol>
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        As notificações você liga depois, na aba Ajustes, dentro de Configurações.
+      </p>
+
+      <Botao tamanho="lg" className="w-full" onClick={aoConcluir}>
+        Entrar no app
       </Botao>
     </section>
   )
 }
 
-function PassoGrupo({ aoConcluir }: { aoConcluir: () => void }) {
+function PassoGrupo({ aoAvancar }: { aoAvancar: () => void }) {
   const cliente = useQueryClient()
   const [nomeGrupo, setNomeGrupo] = useState('')
   const [codigo, setCodigo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
   // A RotaProtegida decide o redirect lendo `tem-habito` do cache, e esse cache
-  // foi preenchido com `false` antes do onboarding criar o habito. Navegar sem
-  // esperar o refetch devolve o usuario para o passo 1 do proprio onboarding.
+  // foi preenchido com `false` antes do onboarding criar o habito. Sem o
+  // refetch aqui, a navegacao final devolve o usuario para o passo 1 do
+  // proprio onboarding.
   async function finalizar() {
     await cliente.invalidateQueries()
-    aoConcluir()
+    aoAvancar()
   }
 
   const criar = useMutation({

@@ -54,6 +54,12 @@ export function Grupos() {
                   {g.membros} {g.membros === 1 ? 'membro' : 'membros'}, {g.desafios}{' '}
                   {g.desafios === 1 ? 'desafio' : 'desafios'}
                 </span>
+                {/* A posicao sai do que a propria consulta ja traz, sem ida extra. */}
+                {g.posicao !== null && (
+                  <span className="block text-xs font-semibold text-primary">
+                    Você está em {g.posicao}º
+                  </span>
+                )}
               </span>
               <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
             </Link>

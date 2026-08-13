@@ -3,12 +3,34 @@ import { hojeSP } from '@/lib/data'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from './useSessao'
 
+/**
+ * Criterio unico do ranking: soma da ofensiva atual de todos os desafios do
+ * grupo. Empate desempata por nome, e as duas telas usam esta mesma funcao,
+ * senao a mesma pessoa apareceria em posicoes diferentes na lista e no detalhe.
+ */
+function porOfensiva(
+  a: { nome: string; streakTotal: number },
+  b: { nome: string; streakTotal: number },
+): number {
+  return b.streakTotal - a.streakTotal || a.nome.localeCompare(b.nome, 'pt-BR')
+}
+
 export interface ResumoGrupo {
   id: string
   nome: string
   codigo: string
   membros: number
   desafios: number
+  /** Posicao do usuario no ranking do grupo. Null se ele nao aparecer na lista. */
+  posicao: number | null
+}
+
+interface LinhaGrupoLista {
+  id: string
+  nome: string
+  codigo_convite: string
+  group_members: { user_id: string; profiles: { nome: string } | null }[] | null
+  habits: { id: string; streaks: { user_id: string; atual: number }[] | null }[] | null
 }
 
 export function useGrupos() {
@@ -18,19 +40,53 @@ export function useGrupos() {
     queryKey: ['grupo', 'lista', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<ResumoGrupo[]> => {
+      // A ofensiva vem aninhada na mesma consulta de propósito: da para calcular
+      // a posicao sem nenhuma ida extra ao servidor.
+      // ponytail: o volume cresce com grupos x desafios x membros. Se passar de
+      // alguns milhares de linhas, o certo e uma RPC que ja devolve o agregado.
       const { data, error } = await supabase
         .from('groups')
-        .select('id, nome, codigo_convite, group_members(user_id), habits(id)')
+        .select(
+          'id, nome, codigo_convite, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
+        )
+        .eq('habits.ativo', true)
         .order('criado_em', { ascending: true })
       if (error) throw error
 
-      return (data ?? []).map((g) => ({
-        id: g.id,
-        nome: g.nome,
-        codigo: g.codigo_convite,
-        membros: (g.group_members ?? []).length,
-        desafios: (g.habits ?? []).length,
-      }))
+      // O PostgREST devolve o relacionamento para um so como objeto, mas sem os
+      // tipos gerados o TypeScript infere array. O cast fica aqui, na fronteira.
+      const linhas = (data ?? []) as unknown as LinhaGrupoLista[]
+
+      return linhas.map((g) => {
+        const membros = g.group_members ?? []
+        const desafios = g.habits ?? []
+
+        const ofensiva = new Map<string, number>()
+        for (const d of desafios) {
+          for (const s of d.streaks ?? []) {
+            ofensiva.set(s.user_id, (ofensiva.get(s.user_id) ?? 0) + s.atual)
+          }
+        }
+
+        const tabela = membros
+          .map((m) => ({
+            id: m.user_id,
+            nome: m.profiles?.nome ?? '',
+            streakTotal: ofensiva.get(m.user_id) ?? 0,
+          }))
+          .sort(porOfensiva)
+
+        const indice = tabela.findIndex((m) => m.id === usuarioId)
+
+        return {
+          id: g.id,
+          nome: g.nome,
+          codigo: g.codigo_convite,
+          membros: membros.length,
+          desafios: desafios.length,
+          posicao: indice >= 0 ? indice + 1 : null,
+        }
+      })
     },
   })
 }
@@ -69,68 +125,74 @@ export function useGrupo(grupoId: string | undefined) {
     queryKey: ['grupo', grupoId],
     enabled: Boolean(grupoId),
     queryFn: async (): Promise<DetalheGrupo> => {
-      const { data: grupo, error } = await supabase
-        .from('groups')
-        .select('id, nome, codigo_convite, dono_id, group_members(user_id, profiles(id, nome, avatar_base, item_equipado))')
-        .eq('id', grupoId!)
-        .single()
+      // Grupo e desafios so dependem do id da rota, entao vao juntos.
+      const [{ data: grupo, error }, { data: desafios, error: erroDesafios }] = await Promise.all([
+        supabase
+          .from('groups')
+          .select(
+            'id, nome, codigo_convite, dono_id, group_members(user_id, profiles(id, nome, avatar_base, item_equipado))',
+          )
+          .eq('id', grupoId!)
+          .single(),
+        supabase
+          .from('habits')
+          .select('id, titulo, icone, ouro_base')
+          .eq('group_id', grupoId!)
+          .eq('ativo', true),
+      ])
       if (error) throw error
-
-      const { data: desafios, error: erroDesafios } = await supabase
-        .from('habits')
-        .select('id, titulo, icone, ouro_base')
-        .eq('group_id', grupoId!)
-        .eq('ativo', true)
       if (erroDesafios) throw erroDesafios
 
       const ids = (desafios ?? []).map((d) => d.id)
-      const porUsuario = new Map<string, number>()
+      const concluidosPorUsuario = new Map<string, number>()
+      const streakPorUsuario = new Map<string, number>()
       const feed: DetalheGrupo['feed'] = []
 
       if (ids.length > 0) {
-        const { data: ocorrencias, error: erroOcorrencias } = await supabase
-          .from('occurrences')
-          .select('id, user_id, habit_id, status, feito_em, data_sp')
-          .in('habit_id', ids)
-          .eq('status', 'feito')
-          .order('feito_em', { ascending: false })
-          .limit(50)
-        if (erroOcorrencias) throw erroOcorrencias
+        // As tres dependem so dos ids dos desafios, entao vao na mesma rodada.
+        const [rHoje, rFeed, rStreaks] = await Promise.all([
+          // O placar de hoje e filtrado no servidor. Contar a partir do feed
+          // limitado dava numero errado assim que o grupo passava de 50 feitos.
+          supabase
+            .from('occurrences')
+            .select('user_id')
+            .in('habit_id', ids)
+            .eq('status', 'feito')
+            .eq('data_sp', hojeSP()),
+          supabase
+            .from('occurrences')
+            .select('id, user_id, habit_id, feito_em')
+            .in('habit_id', ids)
+            .eq('status', 'feito')
+            .not('feito_em', 'is', null)
+            .order('feito_em', { ascending: false })
+            .limit(20),
+          supabase.from('streaks').select('user_id, atual').in('habit_id', ids),
+        ])
 
-        const titulos = new Map((desafios ?? []).map((d) => [d.id, d.titulo]))
-        const hoje = hojeSP()
-
-        for (const o of ocorrencias ?? []) {
-          if (o.data_sp === hoje) {
-            porUsuario.set(o.user_id, (porUsuario.get(o.user_id) ?? 0) + 1)
-          }
-          if (feed.length < 20 && o.feito_em) {
-            feed.push({
-              id: o.id,
-              usuarioId: o.user_id,
-              titulo: titulos.get(o.habit_id) ?? 'Desafio',
-              feitoEm: o.feito_em,
-            })
-          }
-        }
-      }
-
-      const streakPorUsuario = new Map<string, number>()
-      if (ids.length > 0) {
-        const { data: streaks, error: erroStreaks } = await supabase
-          .from('streaks')
-          .select('user_id, atual')
-          .in('habit_id', ids)
         // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
-        if (erroStreaks) throw erroStreaks
-        for (const s of streaks ?? []) {
+        if (rHoje.error) throw rHoje.error
+        if (rFeed.error) throw rFeed.error
+        if (rStreaks.error) throw rStreaks.error
+
+        for (const o of rHoje.data ?? []) {
+          concluidosPorUsuario.set(o.user_id, (concluidosPorUsuario.get(o.user_id) ?? 0) + 1)
+        }
+        for (const s of rStreaks.data ?? []) {
           streakPorUsuario.set(s.user_id, (streakPorUsuario.get(s.user_id) ?? 0) + s.atual)
         }
+
+        const titulos = new Map((desafios ?? []).map((d) => [d.id, d.titulo]))
+        for (const o of rFeed.data ?? []) {
+          feed.push({
+            id: o.id,
+            usuarioId: o.user_id,
+            titulo: titulos.get(o.habit_id) ?? 'Desafio',
+            feitoEm: o.feito_em,
+          })
+        }
       }
 
-      // O PostgREST devolve o relacionamento como objeto quando e para um so,
-      // mas sem os tipos gerados o TypeScript infere array. O cast fica aqui,
-      // na fronteira, e nao espalha `any` pelo resto do arquivo.
       const linhasMembro = (grupo.group_members ?? []) as unknown as LinhaMembro[]
 
       const membros: MembroGrupo[] = linhasMembro
@@ -142,12 +204,12 @@ export function useGrupo(grupoId: string | undefined) {
             nome: p.nome,
             avatarBase: p.avatar_base,
             itemEquipado: p.item_equipado,
-            concluidosHoje: porUsuario.get(p.id) ?? 0,
+            concluidosHoje: concluidosPorUsuario.get(p.id) ?? 0,
             streakTotal: streakPorUsuario.get(p.id) ?? 0,
           }
         })
         .filter((m): m is MembroGrupo => m !== null)
-        .sort((a, b) => b.streakTotal - a.streakTotal || a.nome.localeCompare(b.nome, 'pt-BR'))
+        .sort(porOfensiva)
 
       return {
         id: grupo.id,

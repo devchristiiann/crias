@@ -1,17 +1,20 @@
-import { ArrowLeft, Check, Copy, Flame, Loader2, Plus } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Avatar } from '@/components/Avatar'
+import { PlacarHoje, Ranking } from '@/components/grupos/Ranking'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { Botao } from '@/components/ui/Botao'
+import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { useGrupo } from '@/hooks/useGrupos'
 import { useGrupoRealtime } from '@/hooks/useGrupoRealtime'
+import { useSessao } from '@/hooks/useSessao'
 import { iconeDoHabito } from '@/lib/icones'
 
 export function GrupoDetalhe() {
   const { id } = useParams<{ id: string }>()
-  const { data: grupo, isPending, isError } = useGrupo(id)
+  const { data: grupo, isPending, isError, refetch } = useGrupo(id)
+  const { usuarioId } = useSessao()
   const [criando, setCriando] = useState(false)
   const [copiado, setCopiado] = useState(false)
 
@@ -26,11 +29,7 @@ export function GrupoDetalhe() {
   }
 
   if (isError || !grupo) {
-    return (
-      <p className="rounded-lg border border-destructive/40 bg-card p-4 text-sm text-destructive">
-        Não deu para carregar este grupo.
-      </p>
-    )
+    return <EstadoErro mensagem="Não deu para carregar este grupo." aoTentarDeNovo={refetch} />
   }
 
   async function copiarCodigo() {
@@ -49,7 +48,8 @@ export function GrupoDetalhe() {
     <section className="space-y-5">
       <Link
         to="/grupos"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex min-h-11 items-center gap-1 py-2 text-sm
+                   text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
         Grupos
@@ -61,6 +61,10 @@ export function GrupoDetalhe() {
           {grupo.membros.length} {grupo.membros.length === 1 ? 'membro' : 'membros'}
         </p>
       </header>
+
+      <PlacarHoje membros={grupo.membros} />
+
+      <Ranking membros={grupo.membros} usuarioId={usuarioId} />
 
       <button
         type="button"
@@ -76,35 +80,6 @@ export function GrupoDetalhe() {
         </span>
         {copiado ? <Check className="size-5 text-success" /> : <Copy className="size-5" />}
       </button>
-
-      <div className="space-y-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Ranking por ofensiva
-        </h2>
-        <ul className="space-y-2">
-          {grupo.membros.map((m, indice) => (
-            <li
-              key={m.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
-            >
-              <span className="w-5 shrink-0 text-center text-sm font-semibold text-muted-foreground">
-                {indice + 1}
-              </span>
-              <Avatar base={m.avatarBase} item={m.itemEquipado} tamanho={40} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{m.nome}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {m.concluidosHoje} {m.concluidosHoje === 1 ? 'feito' : 'feitos'} hoje
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-warning">
-                <Flame className="size-4" />
-                {m.streakTotal}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
 
       <div className="space-y-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
