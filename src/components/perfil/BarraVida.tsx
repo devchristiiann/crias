@@ -3,6 +3,13 @@ import { cn } from '@/lib/utils'
 
 const VIDA_MAXIMA = 50
 
+/**
+ * A explicação fica visível sempre, e não só com a vida baixa.
+ *
+ * Enquanto ela só aparecia no vermelho, a barra era um número que andava
+ * sozinho: quem via 50 de 50 nunca descobria o que tirava vida, e quem via a
+ * vida encher de novo achava que era bug.
+ */
 export function BarraVida({ vida }: { vida: number }) {
   const proporcao = Math.max(0, Math.min(1, vida / VIDA_MAXIMA))
   const critica = vida <= 20
@@ -24,11 +31,11 @@ export function BarraVida({ vida }: { vida: number }) {
           style={{ width: `${proporcao * 100}%` }}
         />
       </div>
-      {critica && (
-        <p className="text-xs text-muted-foreground">
-          Vida baixa. Zerando, sua ofensiva volta ao começo e a vida enche de novo.
-        </p>
-      )}
+      <ul className="space-y-0.5 pt-1 text-xs text-muted-foreground">
+        <li>Rotina parada por 24 horas tira 10.</li>
+        <li>Recaída de hábito de perda tira 5.</li>
+        <li>Vida em zero: toda ofensiva volta ao começo e a vida enche de novo.</li>
+      </ul>
     </div>
   )
 }

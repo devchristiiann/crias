@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Botao } from '@/components/ui/Botao'
-import { Folha } from '@/components/ui/Folha'
+import { Confirmar } from '@/components/ui/Confirmar'
 import { supabase } from '@/lib/supabase'
 
 const MENSAGENS: Record<string, string> = {
@@ -48,6 +48,9 @@ export function ExcluirRotina({
       // mesmas listas.
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
+      // Habito de perda so vive nesta chave: sem ela o card fica na secao
+      // Evitar apontando para linha que nao existe mais.
+      cliente.invalidateQueries({ queryKey: ['habitos-ruins'] })
       setConfirmando(false)
       aoExcluir?.()
     },
@@ -73,37 +76,21 @@ export function ExcluirRotina({
         </Botao>
       )}
 
-      <Folha aberta={confirmando} aoFechar={() => setConfirmando(false)} titulo="Excluir rotina?">
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {deGrupo
-              ? 'A rotina e todo o histórico somem para todos os membros.'
-              : 'A rotina e todo o histórico somem para sempre.'}
-          </p>
-
-          {excluir.isError && <p className="text-sm text-destructive">{excluir.error.message}</p>}
-
-          <div className="flex gap-2">
-            <Botao
-              variante="secundario"
-              className="flex-1"
-              disabled={excluir.isPending}
-              onClick={() => setConfirmando(false)}
-            >
-              Cancelar
-            </Botao>
-            {/* Trava contra duplo clique: `carregando` desabilita o botao. */}
-            <Botao
-              variante="perigo"
-              className="flex-1"
-              carregando={excluir.isPending}
-              onClick={() => excluir.mutate()}
-            >
-              Excluir
-            </Botao>
-          </div>
-        </div>
-      </Folha>
+      <Confirmar
+        aberta={confirmando}
+        aoFechar={() => setConfirmando(false)}
+        titulo="Excluir rotina?"
+        detalhe={
+          deGrupo
+            ? 'A rotina e todo o histórico somem para todos os membros.'
+            : 'A rotina e todo o histórico somem para sempre.'
+        }
+        rotuloConfirmar="Excluir"
+        perigo
+        carregando={excluir.isPending}
+        erro={excluir.error?.message ?? null}
+        aoConfirmar={() => excluir.mutate()}
+      />
     </>
   )
 }

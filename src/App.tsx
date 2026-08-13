@@ -19,6 +19,7 @@ import { Grupos } from '@/pages/Grupos'
 import { Hoje } from '@/pages/Hoje'
 import { Loja } from '@/pages/Loja'
 import { MinhaTrilha } from '@/pages/MinhaTrilha'
+import { Notificacoes } from '@/pages/Notificacoes'
 import { Onboarding } from '@/pages/Onboarding'
 import { RedefinirSenha } from '@/pages/RedefinirSenha'
 
@@ -88,6 +89,7 @@ export function App() {
                 <Route path="/trilha" element={<MinhaTrilha />} />
                 <Route path="/loja" element={<Loja />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
+                <Route path="/notificacoes" element={<Notificacoes />} />
                 {/* A trilha virou o centro do menu e a pagina de perfil se
                     dividiu entre ela e Ajustes. O redirect mantem de pe
                     qualquer link antigo que ja esteja por ai. */}

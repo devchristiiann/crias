@@ -92,17 +92,26 @@ test.describe.serial('percurso mobile em 360px', () => {
 
     // O caminho para criar conta precisa estar visivel na propria tela de
     // entrada, como alternador, e nao escondido num botao de texto embaixo.
-    await expect(page.getByRole('tab', { name: 'Entrar' })).toBeVisible()
+    // O alternador deixou de se declarar `tablist`: eram abas sem `tabpanel`
+    // nenhum do outro lado, o que o leitor de tela anuncia como widget quebrado.
+    // Hoje sao dois botoes com `aria-pressed`, igual ao resto do app.
+    // `first()` porque "Entrar" aparece duas vezes na tela: o alternador em cima
+    // e o botao que envia o formulario embaixo. O alternador e o primeiro.
+    await expect(
+      page.getByRole('button', { name: 'Entrar', exact: true }).first(),
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Esqueci minha senha' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'Criar conta' }).click()
+    // O de cima e o alternador; o de baixo so existe depois que o formulario
+    // troca de modo, e e ele que envia o cadastro.
+    await page.getByRole('button', { name: 'Criar conta', exact: true }).first().click()
     await expect(page.getByLabel('Seu nome')).toBeVisible()
     await verificarSemTopo(page, '/entrar (criar conta)')
 
     await page.getByLabel('Seu nome').fill(NOME)
     await page.getByLabel('E-mail').fill(EMAIL)
     await page.getByLabel('Senha').fill(SENHA)
-    await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
+    await page.getByRole('button', { name: 'Criar conta', exact: true }).last().click()
 
     await page.waitForURL('**/onboarding', { timeout: 30_000 })
 

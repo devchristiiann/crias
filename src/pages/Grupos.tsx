@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Loader2, Plus, Users } from 'lucide-react'
+import { Camera, CameraOff, ChevronRight, Loader2, Plus, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Botao } from '@/components/ui/Botao'
@@ -96,16 +96,21 @@ export function Grupos() {
 function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void }) {
   const cliente = useQueryClient()
   const [nome, setNome] = useState('')
+  const [exigeFoto, setExigeFoto] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   const criar = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc('criar_grupo', { p_nome: nome })
+      const { data, error } = await supabase.rpc('criar_grupo', {
+        p_nome: nome,
+        p_exige_foto: exigeFoto,
+      })
       if (error) throw error
       if (data?.error) throw new Error('Não deu para criar o grupo agora.')
     },
     onSuccess: () => {
       setNome('')
+      setExigeFoto(false)
       setErro(null)
       cliente.invalidateQueries({ queryKey: ['grupo'] })
       aoFechar()
@@ -113,8 +118,17 @@ function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => voi
     onError: (e: Error) => setErro(e.message),
   })
 
+  // Fechar depois de um erro e reabrir mostrava a mensagem velha em cima de um
+  // formulario limpo. A folha some do DOM logico, mas o estado fica aqui.
+  function fechar() {
+    setNome('')
+    setExigeFoto(false)
+    setErro(null)
+    aoFechar()
+  }
+
   return (
-    <Folha aberta={aberta} aoFechar={aoFechar} titulo="Criar grupo">
+    <Folha aberta={aberta} aoFechar={fechar} titulo="Criar grupo">
       <div className="space-y-4">
         <Campo
           rotulo="Nome do grupo"
@@ -123,6 +137,21 @@ function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => voi
           maxLength={40}
           onChange={(e) => setNome(e.target.value)}
         />
+
+        <div className="space-y-1.5">
+          <Botao
+            variante="secundario"
+            className="w-full justify-between"
+            role="switch"
+            aria-checked={exigeFoto}
+            onClick={() => setExigeFoto((v) => !v)}
+          >
+            Exigir foto no check-in
+            {exigeFoto ? <Camera className="size-4" /> : <CameraOff className="size-4" />}
+          </Botao>
+          <p className="text-xs text-muted-foreground">Vale para todo desafio do grupo.</p>
+        </div>
+
         {erro && <p className="text-sm text-destructive">{erro}</p>}
         <Botao
           tamanho="lg"
@@ -160,8 +189,16 @@ function FolhaEntrar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => vo
     onError: (e: Error) => setErro(e.message),
   })
 
+  // Mesmo motivo da folha de criar: o erro de codigo invalido sobrevivia ao
+  // fechamento e reaparecia sobre o campo vazio.
+  function fechar() {
+    setCodigo('')
+    setErro(null)
+    aoFechar()
+  }
+
   return (
-    <Folha aberta={aberta} aoFechar={aoFechar} titulo="Entrar por código">
+    <Folha aberta={aberta} aoFechar={fechar} titulo="Entrar por código">
       <div className="space-y-4">
         <Campo
           rotulo="Código do grupo"

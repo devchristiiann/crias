@@ -22,6 +22,8 @@ export interface OcorrenciaHoje {
   grupoNome: string | null
   /** Dono do grupo. So ele pode excluir a rotina de grupo. Null em rotina individual. */
   grupoDonoId: string | null
+  /** Grupo que so aceita check-in com foto. A trava de verdade e a RPC `check_in`. */
+  grupoExigeFoto: boolean
   streak: number
   feitosNoGrupo: number
   totalGrupo: number
@@ -43,7 +45,7 @@ interface LinhaOcorrencia {
     regra_frequencia: RegraFrequencia
     lembrete_hora: string | null
     group_id: string | null
-    groups: { nome: string; dono_id: string } | null
+    groups: { nome: string; dono_id: string; exige_foto: boolean } | null
   }
 }
 
@@ -60,7 +62,7 @@ export function useOcorrenciasHoje() {
         .select(
           `id, data_sp, vence_em, status, vezes_feitas, vezes_alvo, foto_path,
            habits!inner ( id, titulo, icone, ouro_base, regra_frequencia, lembrete_hora,
-                          group_id, groups ( nome, dono_id ) )`,
+                          group_id, groups ( nome, dono_id, exige_foto ) )`,
         )
         .eq('user_id', usuarioId!)
         .eq('data_sp', hoje)
@@ -117,6 +119,7 @@ export function useOcorrenciasHoje() {
             grupoId: l.habits.group_id,
             grupoNome: l.habits.groups?.nome ?? null,
             grupoDonoId: l.habits.groups?.dono_id ?? null,
+            grupoExigeFoto: l.habits.groups?.exige_foto ?? false,
             streak: porHabito.get(l.habits.id) ?? 0,
             feitosNoGrupo: p.feitos,
             totalGrupo: p.total,

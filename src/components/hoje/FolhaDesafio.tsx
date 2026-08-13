@@ -1,9 +1,15 @@
-import { Camera, Coins, Flame, Users } from 'lucide-react'
+import { Camera, Coins, Flame, Undo2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { Botao } from '@/components/ui/Botao'
+import { Confirmar } from '@/components/ui/Confirmar'
 import { Folha } from '@/components/ui/Folha'
-import { useCheckIn, type PremioBau, type ResultadoCheckIn } from '@/hooks/useCheckIn'
+import {
+  useCheckIn,
+  useDesfazerCheckIn,
+  type PremioBau,
+  type ResultadoCheckIn,
+} from '@/hooks/useCheckIn'
 import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { useSessao } from '@/hooks/useSessao'
 import { CATALOGO, POR_ID } from '@/lib/catalogo'
@@ -106,13 +112,19 @@ export function FolhaDesafio({
 }) {
   const [foto, setFoto] = useState<File | null>(null)
   const [resultado, setResultado] = useState<ResultadoCheckIn | null>(null)
+  const [desmarcando, setDesmarcando] = useState(false)
   const entradaArquivo = useRef<HTMLInputElement>(null)
   const checkIn = useCheckIn()
+  const desfazer = useDesfazerCheckIn()
   const { usuarioId } = useSessao()
 
   function fechar() {
     setFoto(null)
     setResultado(null)
+    setDesmarcando(false)
+    // A mutation vive junto com a folha: sem limpar, o erro do desafio anterior
+    // reaparece em cima do proximo.
+    checkIn.reset()
     aoFechar()
   }
 
@@ -120,10 +132,21 @@ export function FolhaDesafio({
 
   const Icone = iconeDoHabito(ocorrencia.icone)
   const feito = ocorrencia.status === 'feito'
+  // A RPC desfaz com `vezes_feitas > 0`, nao so com status feito. Quem marcou
+  // 1 de 3 por engano precisa da mesma saida.
+  const temMarcacao = ocorrencia.vezes_feitas > 0
   // Rotina individual e sempre de quem esta vendo. A de grupo so o dono apaga.
   const deGrupo = ocorrencia.grupoId !== null
   const podeExcluir = !deGrupo || ocorrencia.grupoDonoId === usuarioId
   const face = faceDoPremio(resultado?.premio)
+  // A trava de verdade e a RPC. Aqui a tela so evita um Concluir que ja nasceria
+  // recusado pelo servidor.
+  const exigeFoto = ocorrencia.grupoExigeFoto
+  // A RPC aceita `coalesce(p_foto, o.foto_path)`: foto ja enviada num periodo
+  // de varias vezes continua valendo, e travar aqui recusaria o que o servidor
+  // aprovaria.
+  const temFoto = Boolean(foto) || Boolean(ocorrencia.foto_path)
+  const faltaFoto = exigeFoto && !temFoto
 
   return (
     <Folha aberta aoFechar={fechar} titulo={ocorrencia.titulo}>
@@ -170,15 +193,21 @@ export function FolhaDesafio({
 
         {resultado?.bau && face && <RevelacaoBau face={face} no={resultado.no} />}
 
-        {resultado && !resultado.error && !resultado.ja_feito && (
+        {resultado && !resultado.ja_feito && (
           <p className="text-sm font-medium text-success">
             Mais {resultado.ouro_ganho} de ouro. Ofensiva de {resultado.streak} dias.
           </p>
         )}
 
-        {checkIn.isError && (
-          <p className="text-sm text-destructive">Não deu para marcar agora. Tente de novo.</p>
+        {resultado?.fotoFalhou && (
+          <p className="text-sm text-muted-foreground">
+            A foto não subiu. O hábito foi marcado mesmo assim.
+          </p>
         )}
+
+        {/* A mensagem ja vem traduzida do hook: o erro dentro do 200 vira
+            excecao la, e a tela nao confere mais o corpo por fora. */}
+        {checkIn.error && <p className="text-sm text-destructive">{checkIn.error.message}</p>}
 
         {!feito && (
           <>
@@ -196,12 +225,19 @@ export function FolhaDesafio({
               onClick={() => entradaArquivo.current?.click()}
             >
               <Camera className="size-4" />
-              {foto ? 'Foto anexada' : 'Anexar foto'}
+              {temFoto ? 'Foto anexada' : exigeFoto ? 'Anexar foto, obrigatória' : 'Anexar foto'}
             </Botao>
+
+            {faltaFoto && (
+              <p className="text-sm text-muted-foreground">
+                Este grupo só aceita check-in com foto.
+              </p>
+            )}
 
             <Botao
               tamanho="lg"
               className="w-full"
+              disabled={faltaFoto}
               carregando={checkIn.isPending}
               onClick={() =>
                 checkIn.mutate(
@@ -222,6 +258,20 @@ export function FolhaDesafio({
           </>
         )}
 
+        {temMarcacao && (
+          <Botao
+            variante="secundario"
+            className="w-full"
+            onClick={() => {
+              desfazer.reset()
+              setDesmarcando(true)
+            }}
+          >
+            <Undo2 className="size-4" />
+            Marcar como não feito
+          </Botao>
+        )}
+
         {feito && (
           <Botao variante="secundario" className="w-full" onClick={fechar}>
             Fechar
@@ -236,6 +286,31 @@ export function FolhaDesafio({
             aoExcluir={fechar}
           />
         )}
+
+        <Confirmar
+          aberta={desmarcando}
+          aoFechar={() => setDesmarcando(false)}
+          titulo="Marcar como não feito?"
+          // A RPC zera `vezes_feitas` inteiro e estorna o acumulado: dizer "este
+          // check-in" esconderia que o periodo todo volta.
+          detalhe={
+            ocorrencia.vezes_alvo > 1
+              ? 'Todas as marcações deste período voltam atrás.'
+              : 'O ouro deste check-in volta atrás.'
+          }
+          rotuloConfirmar="Desmarcar"
+          perigo
+          carregando={desfazer.isPending}
+          erro={desfazer.error?.message ?? null}
+          aoConfirmar={() =>
+            desfazer.mutate(ocorrencia.id, {
+              onSuccess: () => {
+                setResultado(null)
+                setDesmarcando(false)
+              },
+            })
+          }
+        />
       </div>
     </Folha>
   )

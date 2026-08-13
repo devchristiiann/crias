@@ -2,16 +2,20 @@ import { Coins, Heart, Loader2, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
+import { CardHabitoRuim } from '@/components/hoje/CardHabitoRuim'
 import { CardOcorrencia } from '@/components/hoje/CardOcorrencia'
 import { FolhaDesafio } from '@/components/hoje/FolhaDesafio'
+import { SinoNotificacoes } from '@/components/notificacoes/SinoNotificacoes'
 import { Botao } from '@/components/ui/Botao'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
+import { useHabitosRuins } from '@/hooks/useHabitosRuins'
 import { useOcorrenciasHoje } from '@/hooks/useOcorrenciasHoje'
 import { usePerfil } from '@/hooks/usePerfil'
 
 export function Hoje() {
   const { data: ocorrencias, isPending, isError, refetch } = useOcorrenciasHoje()
+  const { data: habitosRuins } = useHabitosRuins()
   const { data: perfil } = usePerfil()
   const [parametros, setParametros] = useSearchParams()
   const [selecionada, setSelecionada] = useState<string | null>(null)
@@ -32,6 +36,7 @@ export function Hoje() {
     }
   }, [ocorrencias])
 
+  const ruins = habitosRuins ?? []
   const aberta = (ocorrencias ?? []).find((o) => o.id === selecionada) ?? null
 
   function fecharFolha() {
@@ -44,27 +49,32 @@ export function Hoje() {
 
   return (
     <section className="space-y-5">
-      <header className="flex items-start justify-between gap-4">
-        <div>
+      {/* O bloco da direita cresceu com o sino, e o ouro pode chegar a cinco
+          digitos. Sem `min-w-0` o titulo empurra a linha para fora dos 360px. */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Hoje</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="truncate text-sm text-muted-foreground">
             {pendentes.length === 0 && concluidas.length > 0
               ? 'Tudo feito. Volte amanhã.'
               : `${pendentes.length} para fazer`}
           </p>
         </div>
-        {perfil && (
-          <dl className="flex gap-3 text-sm font-semibold">
-            <div className="flex items-center gap-1" title="Ouro">
-              <Coins className="size-4 text-warning" />
-              {perfil.ouro}
-            </div>
-            <div className="flex items-center gap-1" title="Vida">
-              <Heart className="size-4 text-destructive" />
-              {perfil.vida}
-            </div>
-          </dl>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <SinoNotificacoes />
+          {perfil && (
+            <dl className="flex gap-3 text-sm font-semibold">
+              <div className="flex items-center gap-1" title="Ouro">
+                <Coins className="size-4 text-warning" />
+                {perfil.ouro}
+              </div>
+              <div className="flex items-center gap-1" title="Vida">
+                <Heart className="size-4 text-destructive" />
+                {perfil.vida}
+              </div>
+            </dl>
+          )}
+        </div>
       </header>
 
       {isPending && (
@@ -79,7 +89,9 @@ export function Hoje() {
 
       {!isPending && !isError && (
         <>
-          {pendentes.length === 0 && concluidas.length === 0 && (
+          {/* A secao Evitar conta: dizer "nada marcado" com habito de perda
+              logo abaixo e a tela contradizendo a si mesma. */}
+          {pendentes.length === 0 && concluidas.length === 0 && ruins.length === 0 && (
             <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
               Nada marcado para hoje. Crie um hábito ou espere a próxima data da sua frequência.
             </p>
@@ -102,6 +114,21 @@ export function Hoje() {
                 {concluidas.map((o) => (
                   <li key={o.id}>
                     <CardOcorrencia ocorrencia={o} aoAbrir={() => setSelecionada(o.id)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {ruins.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Evitar
+              </h2>
+              <ul className="space-y-2">
+                {ruins.map((h) => (
+                  <li key={h.id}>
+                    <CardHabitoRuim habito={h} />
                   </li>
                 ))}
               </ul>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
+import { Confirmar } from '@/components/ui/Confirmar'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { type Perfil, usePerfil } from '@/hooks/usePerfil'
@@ -66,6 +67,9 @@ function Premios({
   const [titulo, setTitulo] = useState('')
   const [custo, setCusto] = useState(50)
   const [erro, setErro] = useState<string | null>(null)
+  // Uma instancia de confirmacao por acao, guiada pelo premio escolhido.
+  const [aResgatar, setAResgatar] = useState<Premio | null>(null)
+  const [aRemover, setARemover] = useState<Premio | null>(null)
 
   const { data: premios, isPending, isError, refetch } = useQuery({
     queryKey: ['premios', usuarioId],
@@ -114,9 +118,13 @@ function Premios({
   const arquivar = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('rewards').update({ ativo: false }).eq('id', id)
-      if (error) throw error
+      if (error) throw new Error('Não deu para remover agora.')
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['premios'] }),
+    onSuccess: () => {
+      setErro(null)
+      cliente.invalidateQueries({ queryKey: ['premios'] })
+    },
+    onError: (e: Error) => setErro(e.message),
   })
 
   return (
@@ -163,7 +171,10 @@ function Premios({
                 variante={pode ? 'primario' : 'secundario'}
                 disabled={!pode}
                 carregando={resgatar.isPending && resgatar.variables === p.id}
-                onClick={() => resgatar.mutate(p.id)}
+                onClick={() => {
+                  setErro(null)
+                  setAResgatar(p)
+                }}
               >
                 Resgatar
               </Botao>
@@ -172,9 +183,8 @@ function Premios({
                 aria-label={`Remover ${p.titulo}`}
                 disabled={arquivar.isPending}
                 onClick={() => {
-                  // Confirmacao nomeia o premio: e acao destrutiva, e o alvo
-                  // fica ao lado do botao de resgatar.
-                  if (window.confirm(`Remover o prêmio ${p.titulo}?`)) arquivar.mutate(p.id)
+                  setErro(null)
+                  setARemover(p)
                 }}
                 className="flex size-11 shrink-0 items-center justify-center rounded-md
                            text-muted-foreground hover:bg-accent hover:text-destructive
@@ -187,7 +197,9 @@ function Premios({
         })}
       </ul>
 
-      {erro && !criando && <p className="text-sm text-destructive">{erro}</p>}
+      {erro && !criando && !aResgatar && !aRemover && (
+        <p className="text-sm text-destructive">{erro}</p>
+      )}
 
       {(premios ?? []).length > 0 && (
         <Botao variante="secundario" className="w-full" onClick={aoCriar}>
@@ -231,6 +243,34 @@ function Premios({
           </Botao>
         </div>
       </Folha>
+
+      {/* Resgatar tira ouro de verdade, entao nunca sai de um toque so. */}
+      <Confirmar
+        aberta={aResgatar !== null}
+        aoFechar={() => setAResgatar(null)}
+        titulo={`Resgatar ${aResgatar?.titulo ?? ''}?`}
+        detalhe={`Custa ${aResgatar?.custo_ouro ?? 0} de ouro.`}
+        rotuloConfirmar="Resgatar"
+        carregando={resgatar.isPending}
+        erro={erro}
+        aoConfirmar={() => {
+          if (aResgatar) resgatar.mutate(aResgatar.id, { onSuccess: () => setAResgatar(null) })
+        }}
+      />
+
+      <Confirmar
+        aberta={aRemover !== null}
+        aoFechar={() => setARemover(null)}
+        titulo={`Remover ${aRemover?.titulo ?? ''}?`}
+        detalhe="O prêmio sai da sua lista."
+        rotuloConfirmar="Remover"
+        perigo
+        carregando={arquivar.isPending}
+        erro={erro}
+        aoConfirmar={() => {
+          if (aRemover) arquivar.mutate(aRemover.id, { onSuccess: () => setARemover(null) })
+        }}
+      />
     </div>
   )
 }
@@ -255,6 +295,8 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
   const { usuarioId } = useSessao()
   const [erro, setErro] = useState<string | null>(null)
   const [aba, setAba] = useState<Slot>('personagem')
+  // Uma confirmacao so para a grade inteira: quem manda e a peca escolhida.
+  const [escolhida, setEscolhida] = useState<ItemLoja | null>(null)
 
   const { data: itens, isPending, isError, refetch } = useQuery({
     queryKey: ['itens', usuarioId],
@@ -303,6 +345,28 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
     onError: (e: Error) => setErro(e.message),
   })
 
+  const escolher = (item: ItemLoja) => {
+    setErro(null)
+    setEscolhida(item)
+  }
+
+  /**
+   * So chega aqui quem esta comprando de verdade: personagem passa por
+   * `equipar_item`, porque a primeira aquisicao ja veste, e o resto por
+   * `comprar_item`. Peca que ja e do usuario nunca abre confirmacao.
+   */
+  const confirmarEscolha = () => {
+    if (!escolhida) return
+    if (escolhida.slot === 'personagem') {
+      equipar.mutate(
+        { id: escolhida.id, slot: 'personagem' },
+        { onSuccess: () => setEscolhida(null) },
+      )
+      return
+    }
+    comprar.mutate(escolhida.id, { onSuccess: () => setEscolhida(null) })
+  }
+
   const equipadoNoSlot = (slot: Slot) =>
     slot === 'personagem' ? perfil?.avatar_base
       : slot === 'acessorio' ? perfil?.item_equipado
@@ -322,7 +386,7 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
 
       {/* Rolagem horizontal fica presa aqui dentro: a pagina nunca rola de lado. */}
       <div className="-mx-4 overflow-x-auto px-4">
-        <div role="tablist" className="flex w-max gap-2">
+        <div className="flex w-max gap-2">
           {PRATELEIRAS.map((p) => {
             // O que importa para quem coleciona e quanto ja e seu, nao quanto existe.
             const doSlot = (itens ?? []).filter((i) => i.slot === p.slot)
@@ -331,11 +395,10 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
               <button
                 key={p.slot}
                 type="button"
-                role="tab"
-                aria-selected={aba === p.slot}
+                aria-pressed={aba === p.slot}
                 onClick={() => setAba(p.slot)}
                 className={cn(
-                  'h-10 shrink-0 rounded-lg border px-3.5 text-sm font-medium transition-colors',
+                  'h-11 shrink-0 rounded-lg border px-3.5 text-sm font-medium transition-colors',
                   aba === p.slot
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-card text-muted-foreground hover:bg-accent',
@@ -353,7 +416,7 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
 
       {isPending && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       {isError && <EstadoErro mensagem="Não deu para carregar a coleção." aoTentarDeNovo={refetch} />}
-      {erro && <p className="text-sm text-destructive">{erro}</p>}
+      {erro && !escolhida && <p className="text-sm text-destructive">{erro}</p>}
 
       <ul className="grid grid-cols-2 gap-2">
         {/* Tirar tem que ser tao facil quanto vestir: a opcao de nada e o primeiro
@@ -397,17 +460,28 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
               (comprar.isPending && comprar.variables === item.id) ||
               (equipar.isPending && equipar.variables?.id === item.id)
             }
-            aoComprar={() =>
-              item.slot === 'personagem'
-                ? equipar.mutate({ id: item.id, slot: 'personagem' })
-                : comprar.mutate(item.id)
-            }
-            aoEquipar={(tirar) =>
+            aoComprar={() => escolher(item)}
+            // Vestir e tirar peca que ja e sua nao gasta nada e desfaz num
+            // toque, entao passa direto, personagem inclusive. Quem confirma e
+            // so a compra.
+            aoEquipar={(tirar) => {
+              setErro(null)
               equipar.mutate({ id: tirar ? null : item.id, slot: item.slot })
-            }
+            }}
           />
         ))}
       </ul>
+
+      <Confirmar
+        aberta={escolhida !== null}
+        aoFechar={() => setEscolhida(null)}
+        titulo={`Comprar ${escolhida?.nome ?? ''}?`}
+        detalhe={`Custa ${escolhida?.custo_ouro ?? 0} de ouro.`}
+        rotuloConfirmar="Comprar"
+        carregando={comprar.isPending || equipar.isPending}
+        erro={erro}
+        aoConfirmar={confirmarEscolha}
+      />
     </div>
   )
 }

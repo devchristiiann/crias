@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Botao } from '@/components/ui/Botao'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useSessao } from '@/hooks/useSessao'
+import { supabase } from '@/lib/supabase'
 
 function Carregando() {
   return (
@@ -20,7 +21,7 @@ export function RotaProtegida() {
   // ter habito. Antes o guarda contava habitos, e desde que `excluir_habito`
   // existe apagar a ultima rotina jogava um usuario antigo de volta no
   // onboarding, com direito a refazer a escolha do personagem.
-  const { data: perfil, isPending, isError, refetch } = usePerfil()
+  const { data: perfil, isPending, isError, error, refetch } = usePerfil()
 
   if (carregando) return <Carregando />
   if (!sessao) return <Navigate to="/entrar" replace />
@@ -28,6 +29,17 @@ export function RotaProtegida() {
   // Falha de rede nao pode virar redirecionamento. Sem este ramo, quem ja fez
   // o onboarding era jogado de volta nele toda vez que a consulta falhava.
   if (isError) {
+    // Conta sem perfil nao se resolve tentando de novo: a consulta vai voltar
+    // vazia para sempre. Sair e entrar de novo refaz o cadastro que faltou.
+    if (error.message === 'perfil_ausente') {
+      return (
+        <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-4 px-5">
+          <p className="text-sm">Sua conta ficou incompleta no cadastro.</p>
+          <Botao onClick={() => void supabase.auth.signOut()}>Sair e entrar de novo</Botao>
+        </div>
+      )
+    }
+
     return (
       <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-4 px-5">
         <p className="text-sm">Não deu para carregar seus dados.</p>

@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { apagarUsuario, comoAdmin, comoUsuario, criarUsuario, logar } from './supabase'
+import {
+  ANON,
+  URL_SUPABASE,
+  apagarUsuario,
+  comoAdmin,
+  comoUsuario,
+  criarUsuario,
+  logar,
+} from './supabase'
 
 /**
  * Os seis furos que a auditoria adversarial explorou de verdade e que a migration
@@ -179,9 +187,31 @@ test.describe.serial('correcoes de seguranca da 0013', () => {
     )
     expect((gravado.corpo as { foto_path: string | null }[])[0].foto_path).toBeNull()
 
+    // Pasta certa nao basta: o arquivo tem que existir. Sem esta trava, "exigir
+    // foto" virava exigir que a pessoa DIGITASSE um caminho.
+    const inventada = await comoUsuario(tokenA, '/rest/v1/rpc/check_in', {
+      method: 'POST',
+      body: { p_occ: ocorrenciaHoje, p_foto: `${idA}/nao-existe.webp` },
+    })
+    expect(inventada.status).toBe(200)
+    expect(inventada.corpo).toEqual({ error: 'foto_invalida' })
+
+    const caminho = `${idA}/arquivo.webp`
+    const upload = await fetch(`${URL_SUPABASE}/storage/v1/object/checkins/${caminho}`, {
+      method: 'POST',
+      headers: {
+        apikey: ANON,
+        Authorization: `Bearer ${tokenA}`,
+        'Content-Type': 'image/webp',
+        'x-upsert': 'true',
+      },
+      body: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]),
+    })
+    expect(upload.status, await upload.clone().text()).toBe(200)
+
     const propria = await comoUsuario(tokenA, '/rest/v1/rpc/check_in', {
       method: 'POST',
-      body: { p_occ: ocorrenciaHoje, p_foto: `${idA}/arquivo.webp` },
+      body: { p_occ: ocorrenciaHoje, p_foto: caminho },
     })
     expect(propria.status).toBe(200)
     expect(propria.corpo, JSON.stringify(propria.corpo)).toMatchObject({ completou: true })

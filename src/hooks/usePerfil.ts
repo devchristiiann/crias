@@ -33,8 +33,12 @@ export function usePerfil() {
           'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido',
         )
         .eq('id', usuarioId!)
-        .single()
+        // `maybeSingle` porque `single` erra quando nao ha linha, e o erro dele
+        // e indistinguivel de falha de rede. Perfil ausente (trigger de criacao
+        // que falhou) precisa de saida propria, nao de "Tentar de novo".
+        .maybeSingle()
       if (error) throw error
+      if (!data) throw new Error('perfil_ausente')
       return data as Perfil
     },
   })

@@ -5,6 +5,18 @@ import { Trilha } from '@/components/trilha/Trilha'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useTrilha } from '@/hooks/useTrilha'
+import { MOTIVO_EM_PORTUGUES, useVida } from '@/hooks/useVida'
+import { FUSO } from '@/lib/data'
+import { cn } from '@/lib/utils'
+
+/** Data e hora curtas, sempre em São Paulo, nunca no fuso do navegador. */
+const QUANDO = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: FUSO,
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+})
 
 /**
  * A trilha so mostra. Trocar de personagem vive na aba Personagens da Loja, que
@@ -54,11 +66,48 @@ export function MinhaTrilha() {
         fundoEquipado={perfil.fundo_equipado}
       />
 
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
         <BarraVida vida={perfil.vida} />
+        <HistoricoVida />
       </div>
 
       <CalendarioOfensiva diasProdutivos={dias} />
     </section>
+  )
+}
+
+/**
+ * O que já mexeu na vida, do mais recente para o mais antigo.
+ *
+ * Sem esta lista a barra só mostrava o saldo, e a pessoa via o número cair sem
+ * nunca saber qual rotina atrasou nem quando.
+ */
+function HistoricoVida() {
+  const { data: eventos, isError } = useVida()
+
+  if (isError) {
+    return <p className="text-xs text-muted-foreground">Não deu para carregar o histórico agora.</p>
+  }
+
+  if (!eventos || eventos.length === 0) {
+    return <p className="text-xs text-muted-foreground">Sua vida ainda está inteira.</p>
+  }
+
+  return (
+    <ul className="space-y-1 border-t border-border pt-3">
+      {eventos.map((e) => (
+        <li key={e.id} className="flex items-baseline justify-between gap-3 text-xs">
+          <span className="font-medium">{MOTIVO_EM_PORTUGUES[e.motivo]}</span>
+          <span className="flex shrink-0 items-baseline gap-2">
+            <span className={cn('font-semibold', e.delta < 0 ? 'text-destructive' : 'text-primary')}>
+              {e.delta > 0 ? `+${e.delta}` : e.delta}
+            </span>
+            <time dateTime={e.criado_em} className="text-muted-foreground">
+              {QUANDO.format(new Date(e.criado_em))}
+            </time>
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

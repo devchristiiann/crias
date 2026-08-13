@@ -1,9 +1,9 @@
-import { ArrowLeft, Check, Copy, Loader2, Plus } from 'lucide-react'
+import { ArrowLeft, Camera, Check, Copy, Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FotoCapaGrupo } from '@/components/grupos/FotoCapaGrupo'
+import { GerenciarGrupo } from '@/components/grupos/GerenciarGrupo'
 import { PlacarHoje, Ranking } from '@/components/grupos/Ranking'
-import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { Botao } from '@/components/ui/Botao'
 import { EstadoErro } from '@/components/ui/EstadoErro'
@@ -64,11 +64,16 @@ export function GrupoDetalhe() {
         ehDono={grupo.donoId === usuarioId}
       />
 
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{grupo.nome}</h1>
-        <p className="text-sm text-muted-foreground">
-          {grupo.membros.length} {grupo.membros.length === 1 ? 'membro' : 'membros'}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {/* Nome longo sem espaco tem que quebrar: o `overflow-x-hidden` do
+              AppShell esconderia o estouro e a informacao sumiria calada. */}
+          <h1 className="break-words text-2xl font-semibold tracking-tight">{grupo.nome}</h1>
+          <p className="text-sm text-muted-foreground">
+            {grupo.membros.length} {grupo.membros.length === 1 ? 'membro' : 'membros'}
+          </p>
+        </div>
+        <GerenciarGrupo grupo={grupo} ehDono={grupo.donoId === usuarioId} />
       </header>
 
       <PlacarHoje membros={grupo.membros} />
@@ -94,6 +99,14 @@ export function GrupoDetalhe() {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Desafios
         </h2>
+        {/* Quem barra o check-in sem foto e o servidor. O aviso so evita que a
+            pessoa descubra isso na hora de marcar. */}
+        {grupo.exigeFoto && (
+          <p className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
+            <Camera className="size-4 shrink-0" />
+            Os check-ins deste grupo exigem foto.
+          </p>
+        )}
         {grupo.desafios.length === 0 && (
           <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
             Nenhum desafio ainda. Crie um e ele entra na lista de todo mundo.
@@ -112,10 +125,8 @@ export function GrupoDetalhe() {
                 </span>
                 <span className="min-w-0 flex-1 truncate font-medium">{d.titulo}</span>
                 <span className="shrink-0 text-sm text-muted-foreground">{d.ouroBase} ouro</span>
-                {/* So o dono do grupo apaga um desafio: ele some para todo mundo. */}
-                {grupo.donoId === usuarioId && (
-                  <ExcluirRotina habitId={d.id} titulo={d.titulo} deGrupo compacto />
-                )}
+                {/* Excluir desafio vive na folha de administrar, atras da
+                    engrenagem. Aqui a lixeira convidava ao toque acidental. */}
               </li>
             )
           })}

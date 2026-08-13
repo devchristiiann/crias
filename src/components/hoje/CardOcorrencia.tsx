@@ -1,4 +1,4 @@
-import { Check, Coins, Flame, Users } from 'lucide-react'
+import { Camera, Check, Coins, Flame, Users } from 'lucide-react'
 import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { horaCurta } from '@/lib/data'
 import { rotuloFrequencia } from '@/lib/frequencia'
@@ -62,6 +62,12 @@ export function CardOcorrencia({
             <span className="flex items-center gap-1">
               <Users className="size-3" />
               {ocorrencia.feitosNoGrupo} de {ocorrencia.totalGrupo}
+            </span>
+          )}
+          {ocorrencia.grupoExigeFoto && (
+            <span className="flex items-center gap-1">
+              <Camera className="size-3" />
+              <span className="sr-only">Precisa de foto</span>
             </span>
           )}
           {atrasado && <span className="font-medium text-destructive">Atrasado</span>}

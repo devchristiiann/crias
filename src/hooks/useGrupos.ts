@@ -80,6 +80,9 @@ export function useGrupos() {
           'id, nome, codigo_convite, foto_path, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
         )
         .eq('habits.ativo', true)
+        // Habito de perda nao gera ocorrencia nem rende ouro: ninguem faz
+        // check-in nele, entao ele nao pode entrar na contagem de desafios.
+        .eq('habits.tipo', 'bom')
         .order('criado_em', { ascending: true })
       if (error) throw error
 
@@ -92,7 +95,11 @@ export function useGrupos() {
       )
 
       return linhas.map((g) => {
-        const membros = g.group_members ?? []
+        // Mesmo descarte que `useGrupo` faz: membro sem perfil embutido nao entra
+        // no ranking, entao tambem nao pode entrar na contagem. Contar diferente
+        // aqui fazia o card dizer "5 membros" e o detalhe mostrar 4, e alguem
+        // achar que tinha gente saindo do grupo sozinha.
+        const membros = (g.group_members ?? []).filter((m) => m.profiles !== null)
         const desafios = g.habits ?? []
 
         const ofensiva = new Map<string, number>()
@@ -152,6 +159,8 @@ export interface DetalheGrupo {
   nome: string
   codigo: string
   donoId: string
+  /** Grupo que exige foto obriga comprovacao no check-in de todo desafio dele. */
+  exigeFoto: boolean
   /** URL assinada da capa. Null quando o grupo nao tem foto. */
   fotoUrl: string | null
   membros: MembroGrupo[]
@@ -169,7 +178,7 @@ export function useGrupo(grupoId: string | undefined) {
         supabase
           .from('groups')
           .select(
-            'id, nome, codigo_convite, dono_id, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado))',
+            'id, nome, codigo_convite, dono_id, exige_foto, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado))',
           )
           .eq('id', grupoId!)
           .single(),
@@ -177,7 +186,10 @@ export function useGrupo(grupoId: string | undefined) {
           .from('habits')
           .select('id, titulo, icone, ouro_base')
           .eq('group_id', grupoId!)
-          .eq('ativo', true),
+          .eq('ativo', true)
+          // Mesmo filtro da lista: habito de perda cobra em vez de render, e a
+          // lista mostraria "{ouroBase} ouro" num item que nao aceita check-in.
+          .eq('tipo', 'bom'),
       ])
       if (error) throw error
       if (erroDesafios) throw erroDesafios
@@ -258,6 +270,7 @@ export function useGrupo(grupoId: string | undefined) {
         nome: grupo.nome,
         codigo: grupo.codigo_convite,
         donoId: grupo.dono_id,
+        exigeFoto: Boolean(grupo.exige_foto),
         fotoUrl: (grupo.foto_path && capas.get(grupo.foto_path)) || null,
         membros,
         desafios: (desafios ?? []).map((d) => ({

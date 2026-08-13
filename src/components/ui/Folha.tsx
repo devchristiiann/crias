@@ -22,8 +22,16 @@ export function Folha({ aberta, aoFechar, titulo, children }: Props) {
   useEffect(() => {
     const dialogo = ref.current
     if (!dialogo) return
-    if (aberta && !dialogo.open) dialogo.showModal()
-    if (!aberta && dialogo.open) dialogo.close()
+    // Safari so ganhou `showModal` na 15.4. Sem esta guarda, um iPhone antigo
+    // lanca dentro do efeito, o React desmonta a arvore inteira e o usuario ve
+    // tela em branco no lugar da folha. O `open` cru desenha a folha do mesmo
+    // jeito, sem trava de foco, que e bem melhor que nao desenhar nada.
+    try {
+      if (aberta && !dialogo.open) dialogo.showModal()
+      if (!aberta && dialogo.open) dialogo.close()
+    } catch {
+      dialogo.open = aberta
+    }
   }, [aberta])
 
   return (
@@ -41,7 +49,9 @@ export function Folha({ aberta, aoFechar, titulo, children }: Props) {
     >
       <div className="flex max-h-[85svh] flex-col">
         <header className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold">{titulo}</h2>
+          {/* O titulo interpola conteudo do usuario. Sem `min-w-0` e quebra por
+              palavra, um nome longo sem espaco passa por baixo do Fechar. */}
+          <h2 className="min-w-0 break-words text-base font-semibold">{titulo}</h2>
           <button
             type="button"
             onClick={aoFechar}
@@ -52,7 +62,12 @@ export function Folha({ aberta, aoFechar, titulo, children }: Props) {
             <X className="size-5" />
           </button>
         </header>
-        <div className="overflow-y-auto px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        {/* `min-h-0` nao e enfeite. Filho de flex nasce com `min-height: auto`,
+            entao sem isto ele se recusa a encolher abaixo do proprio conteudo:
+            o `overflow-y-auto` nunca entra em acao, a folha cresce para fora da
+            tela e o botao de acao, que fica no fim, some para baixo da borda
+            sem nenhuma rolagem possivel. */}
+        <div className="min-h-0 overflow-y-auto px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {children}
         </div>
       </div>

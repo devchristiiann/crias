@@ -137,6 +137,27 @@ Deno.serve(async (requisicao) => {
         p_bit: linha.bit_toque,
         p_proximo: linha.proximo_toque,
       })
+
+      // A mesma frase que foi para a bandeja fica guardada na central de
+      // notificacoes do app, com a mesma url, para quem so abre depois ainda
+      // conseguir chegar no desafio. Aproveita o mesmo ponto do registrar_toque:
+      // uma linha por ocorrencia, nunca uma por aparelho.
+      //
+      // Falha aqui nao interrompe nada. O push e o pilar do produto, a linha e o
+      // registro: perder o registro e ruim, perder o envio e inaceitavel.
+      try {
+        const { error: erroNotificacao } = await supabase.from('notificacoes').insert({
+          user_id: linha.user_id,
+          titulo: carga.titulo,
+          corpo: carga.corpo,
+          url: carga.url,
+        })
+        if (erroNotificacao) {
+          console.error('falha ao gravar notificacao', linha.occurrence_id, erroNotificacao.message)
+        }
+      } catch (erro) {
+        console.error('falha ao gravar notificacao', linha.occurrence_id, String(erro))
+      }
     }
   }
 
