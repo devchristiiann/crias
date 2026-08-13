@@ -1,4 +1,5 @@
-import { Flame } from 'lucide-react'
+import { Coins, Flame } from 'lucide-react'
+import { useMemo } from 'react'
 import { Avatar } from '@/components/Avatar'
 import type { MembroGrupo } from '@/hooks/useGrupos'
 import { cn } from '@/lib/utils'
@@ -68,11 +69,11 @@ export function Ranking({
     <section className="space-y-3">
       <div>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Ranking
+          Ranking do mês
         </h2>
         {/* Numero sem criterio parece arbitrario. O criterio fica na tela. */}
         <p className="text-xs text-muted-foreground">
-          Soma da ofensiva de todos os desafios do grupo.
+          Ouro ganho nos desafios do grupo neste mês. Empate vai para a ofensiva.
         </p>
       </div>
 
@@ -109,7 +110,75 @@ export function Ranking({
           ))}
         </ul>
       )}
+
+      <RankingGeral membros={membros} usuarioId={usuarioId} />
     </section>
+  )
+}
+
+/**
+ * O acumulado do grupo, desde que ele existe.
+ *
+ * Fica embaixo e em formato compacto de propósito: a disputa viva é a do mês,
+ * onde quem entrou ontem ainda pode ganhar. Esta é a memória, e memória não
+ * pode ocupar o lugar do jogo de agora.
+ */
+function RankingGeral({
+  membros,
+  usuarioId,
+}: {
+  membros: MembroGrupo[]
+  usuarioId: string | null
+}) {
+  const tabela = useMemo(
+    () =>
+      [...membros].sort(
+        (a, b) =>
+          b.ouroTotal - a.ouroTotal ||
+          b.streakTotal - a.streakTotal ||
+          a.nome.localeCompare(b.nome, 'pt-BR'),
+      ),
+    [membros],
+  )
+
+  // Grupo novo tem a mesma lista duas vezes na tela, uma abaixo da outra, sem
+  // nenhum numero diferente. Só aparece quando o acumulado ja diz algo.
+  if (tabela.every((m) => m.ouroTotal === 0)) return null
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Desde o começo
+        </h3>
+        <p className="text-xs text-muted-foreground">Todo o ouro ganho no grupo até hoje.</p>
+      </div>
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        {tabela.map((m, i) => (
+          <li
+            key={m.id}
+            className={cn(
+              'flex min-h-11 items-center gap-3 px-3 py-2 text-sm',
+              m.id === usuarioId && 'bg-primary/5',
+            )}
+          >
+            <span
+              className={cn(
+                'w-6 shrink-0 text-center text-xs font-semibold',
+                m.id === usuarioId ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              {i + 1}º
+            </span>
+            <span className="min-w-0 flex-1 truncate">{m.id === usuarioId ? 'Você' : m.nome}</span>
+            <span className="flex shrink-0 items-center gap-1 font-semibold">
+              <Coins className="size-4 text-warning" />
+              {m.ouroTotal}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -143,12 +212,15 @@ function ItemPodio({
         {souEu ? 'Você' : membro.nome}
       </span>
       <span
-        className={cn(
-          'flex items-center gap-1 font-semibold text-warning',
-          primeiro ? 'text-sm' : 'text-xs',
-        )}
+        className={cn('flex items-center gap-1 font-semibold', primeiro ? 'text-sm' : 'text-xs')}
       >
-        <Flame className={primeiro ? 'size-4' : 'size-3.5'} />
+        <Coins className={cn('text-warning', primeiro ? 'size-4' : 'size-3.5')} />
+        {membro.ouroMes}
+      </span>
+      {/* A ofensiva vira o segundo numero: ela desempata, entao continua na
+          tela, menor que o ouro que decide. */}
+      <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+        <Flame className="size-3" />
         {membro.streakTotal}
       </span>
       <span
@@ -197,13 +269,19 @@ function LinhaRanking({
             </span>
           )}
         </span>
-        <span className="block text-xs text-muted-foreground">
-          {membro.concluidosHoje} {membro.concluidosHoje === 1 ? 'feito' : 'feitos'} hoje
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            {membro.concluidosHoje} {membro.concluidosHoje === 1 ? 'feito' : 'feitos'} hoje
+          </span>
+          <span className="flex items-center gap-0.5">
+            <Flame className="size-3" />
+            {membro.streakTotal}
+          </span>
         </span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-warning">
-        <Flame className="size-4" />
-        {membro.streakTotal}
+      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
+        <Coins className="size-4 text-warning" />
+        {membro.ouroMes}
       </span>
     </div>
   )

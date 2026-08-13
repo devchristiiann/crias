@@ -1,20 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { hojeSP } from '@/lib/data'
 import { assinarEmLote } from '@/lib/storage'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from './useSessao'
-
-/**
- * Criterio unico do ranking: soma da ofensiva atual de todos os desafios do
- * grupo. Empate desempata por nome, e as duas telas usam esta mesma funcao,
- * senao a mesma pessoa apareceria em posicoes diferentes na lista e no detalhe.
- */
-function porOfensiva(
-  a: { nome: string; streakTotal: number },
-  b: { nome: string; streakTotal: number },
-): number {
-  return b.streakTotal - a.streakTotal || a.nome.localeCompare(b.nome, 'pt-BR')
-}
 
 /**
  * Validade da URL assinada da capa. Curta porque o bucket e privado e o link
@@ -40,8 +27,8 @@ interface LinhaGrupoLista {
   id: string
   nome: string
   foto_path: string | null
-  group_members: { user_id: string; profiles: { nome: string } | null }[] | null
-  habits: { id: string; streaks: { user_id: string; atual: number }[] | null }[] | null
+  group_members: { user_id: string; profiles: { id: string } | null }[] | null
+  habits: { id: string }[] | null
 }
 
 export function useGrupos() {
@@ -51,27 +38,32 @@ export function useGrupos() {
     queryKey: ['grupo', 'lista', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<ResumoGrupo[]> => {
-      // A ofensiva vem aninhada na mesma consulta de propósito: da para calcular
-      // a posicao sem nenhuma ida extra ao servidor.
-      // ponytail: o volume cresce com grupos x desafios x membros. Se passar de
-      // alguns milhares de linhas, o certo e uma RPC que ja devolve o agregado.
-      const { data, error } = await supabase
-        .from('groups')
-        // Sem `codigo_convite`: a lista nao mostra mais o codigo de nenhum
-        // grupo, e dado que a tela nao usa nao precisa sair do banco.
-        .select(
-          'id, nome, foto_path, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
-        )
-        .eq('habits.ativo', true)
-        // Habito de perda nao gera ocorrencia nem rende ouro: ninguem faz
-        // check-in nele, entao ele nao pode entrar na contagem de desafios.
-        .eq('habits.tipo', 'bom')
-        .order('criado_em', { ascending: true })
+      // A posicao sai de `posicoes_grupos`, uma chamada para todos os grupos. O
+      // criterio e ouro do mes, que mora em coluna que o cliente nao le, e antes
+      // disto a lista embutia habito e ofensiva de todo mundo so para calcular
+      // isso aqui: o volume crescia com grupos vezes desafios vezes membros.
+      const [{ data, error }, { data: posicoes, error: erroPosicoes }] = await Promise.all([
+        supabase
+          .from('groups')
+          // Sem `codigo_convite`: a lista nao mostra mais o codigo de nenhum
+          // grupo, e dado que a tela nao usa nao precisa sair do banco.
+          .select('id, nome, foto_path, group_members(user_id, profiles(id)), habits(id)')
+          .eq('habits.ativo', true)
+          // Habito de perda nao gera ocorrencia nem rende ouro: ninguem faz
+          // check-in nele, entao ele nao pode entrar na contagem de desafios.
+          .eq('habits.tipo', 'bom')
+          .order('criado_em', { ascending: true }),
+        supabase.rpc('posicoes_grupos'),
+      ])
       if (error) throw error
+      if (erroPosicoes) throw erroPosicoes
 
       // O PostgREST devolve o relacionamento para um so como objeto, mas sem os
       // tipos gerados o TypeScript infere array. O cast fica aqui, na fronteira.
       const linhas = (data ?? []) as unknown as LinhaGrupoLista[]
+      const posicaoPorGrupo = new Map(
+        ((posicoes ?? []) as { grupo: string; posicao: number }[]).map((p) => [p.grupo, p.posicao]),
+      )
 
       const capas = await assinarCapas(
         linhas.map((g) => g.foto_path).filter((c): c is string => Boolean(c)),
@@ -83,31 +75,13 @@ export function useGrupos() {
         // aqui fazia o card dizer "5 membros" e o detalhe mostrar 4, e alguem
         // achar que tinha gente saindo do grupo sozinha.
         const membros = (g.group_members ?? []).filter((m) => m.profiles !== null)
-        const desafios = g.habits ?? []
-
-        const ofensiva = new Map<string, number>()
-        for (const d of desafios) {
-          for (const s of d.streaks ?? []) {
-            ofensiva.set(s.user_id, (ofensiva.get(s.user_id) ?? 0) + s.atual)
-          }
-        }
-
-        const tabela = membros
-          .map((m) => ({
-            id: m.user_id,
-            nome: m.profiles?.nome ?? '',
-            streakTotal: ofensiva.get(m.user_id) ?? 0,
-          }))
-          .sort(porOfensiva)
-
-        const indice = tabela.findIndex((m) => m.id === usuarioId)
 
         return {
           id: g.id,
           nome: g.nome,
           membros: membros.length,
-          desafios: desafios.length,
-          posicao: indice >= 0 ? indice + 1 : null,
+          desafios: (g.habits ?? []).length,
+          posicao: posicaoPorGrupo.get(g.id) ?? null,
           fotoUrl: (g.foto_path && capas.get(g.foto_path)) || null,
         }
       })
@@ -123,6 +97,19 @@ export interface MembroGrupo {
   cenarioEquipado: string | null
   concluidosHoje: number
   streakTotal: number
+  /** Ouro ganho nos desafios deste grupo no mes corrente. Criterio do ranking. */
+  ouroMes: number
+  /** Ouro ganho nos desafios deste grupo desde que o grupo existe. */
+  ouroTotal: number
+}
+
+/** Uma linha de `ranking_grupo`, ja na ordem do ranking. */
+interface LinhaRankingGrupo {
+  user_id: string
+  ouro_mes: number
+  ouro_total: number
+  streak_total: number
+  concluidos_hoje: number
 }
 
 interface LinhaMembro {
@@ -154,8 +141,14 @@ export function useGrupo(grupoId: string | undefined) {
     queryKey: ['grupo', grupoId],
     enabled: Boolean(grupoId),
     queryFn: async (): Promise<DetalheGrupo> => {
-      // Grupo e desafios so dependem do id da rota, entao vao juntos.
-      const [{ data: grupo, error }, { data: desafios, error: erroDesafios }] = await Promise.all([
+      // As tres so dependem do id da rota, entao vao na mesma rodada. O ranking
+      // e uma RPC porque o ouro de cada check-in nao e legivel pelo cliente: o
+      // servidor devolve so o agregado por membro, ja na ordem oficial.
+      const [
+        { data: grupo, error },
+        { data: desafios, error: erroDesafios },
+        { data: ranking, error: erroRanking },
+      ] = await Promise.all([
         supabase
           .from('groups')
           .select(
@@ -171,49 +164,27 @@ export function useGrupo(grupoId: string | undefined) {
           // Mesmo filtro da lista: habito de perda cobra em vez de render, e a
           // lista mostraria "{ouroBase} ouro" num item que nao aceita check-in.
           .eq('tipo', 'bom'),
+        supabase.rpc('ranking_grupo', { p_grupo: grupoId! }),
       ])
       if (error) throw error
       if (erroDesafios) throw erroDesafios
-
-      const ids = (desafios ?? []).map((d) => d.id)
-      const concluidosPorUsuario = new Map<string, number>()
-      const streakPorUsuario = new Map<string, number>()
-
-      if (ids.length > 0) {
-        // As duas dependem so dos ids dos desafios, entao vao na mesma rodada.
-        // O feed saiu daqui: ele rola sem fim e pagina sozinho em `useFeedGrupo`.
-        const [rHoje, rStreaks] = await Promise.all([
-          // O placar de hoje e filtrado no servidor, nunca contado a partir de
-          // uma lista limitada: com o corte, o numero erra assim que o grupo
-          // passa do tamanho da pagina.
-          supabase
-            .from('occurrences')
-            .select('user_id')
-            .in('habit_id', ids)
-            .eq('status', 'feito')
-            .eq('data_sp', hojeSP()),
-          supabase.from('streaks').select('user_id, atual').in('habit_id', ids),
-        ])
-
-        // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
-        if (rHoje.error) throw rHoje.error
-        if (rStreaks.error) throw rStreaks.error
-
-        for (const o of rHoje.data ?? []) {
-          concluidosPorUsuario.set(o.user_id, (concluidosPorUsuario.get(o.user_id) ?? 0) + 1)
-        }
-        for (const s of rStreaks.data ?? []) {
-          streakPorUsuario.set(s.user_id, (streakPorUsuario.get(s.user_id) ?? 0) + s.atual)
-        }
-      }
+      // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
+      if (erroRanking) throw erroRanking
 
       const capas = await assinarCapas(grupo.foto_path ? [grupo.foto_path] : [])
 
       const linhasMembro = (grupo.group_members ?? []) as unknown as LinhaMembro[]
+      const perfil = new Map<string, NonNullable<LinhaMembro['profiles']>>()
+      for (const m of linhasMembro) {
+        if (m.profiles) perfil.set(m.profiles.id, m.profiles)
+      }
 
-      const membros: MembroGrupo[] = linhasMembro
-        .map((m) => {
-          const p = m.profiles
+      // A ordem vem do banco, nao do navegador: e a mesma que a lista de grupos
+      // usa para dizer em que posicao voce esta, e duas ordens diferentes
+      // poriam a mesma pessoa em lugares diferentes nas duas telas.
+      const membros: MembroGrupo[] = ((ranking ?? []) as LinhaRankingGrupo[])
+        .map((linha) => {
+          const p = perfil.get(linha.user_id)
           if (!p) return null
           return {
             id: p.id,
@@ -221,12 +192,13 @@ export function useGrupo(grupoId: string | undefined) {
             avatarBase: p.avatar_base,
             itemEquipado: p.item_equipado,
             cenarioEquipado: p.cenario_equipado,
-            concluidosHoje: concluidosPorUsuario.get(p.id) ?? 0,
-            streakTotal: streakPorUsuario.get(p.id) ?? 0,
+            concluidosHoje: linha.concluidos_hoje,
+            streakTotal: linha.streak_total,
+            ouroMes: linha.ouro_mes,
+            ouroTotal: linha.ouro_total,
           }
         })
         .filter((m): m is MembroGrupo => m !== null)
-        .sort(porOfensiva)
 
       return {
         id: grupo.id,

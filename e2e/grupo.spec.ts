@@ -323,4 +323,63 @@ test.describe.serial('refinamentos de grupo', () => {
     await page.locator('#conteudo').evaluate((e) => e.scrollTo(0, e.scrollHeight))
     await expect(cartoes).toHaveCount(10)
   })
+
+  /**
+   * O ranking e por ouro ganho no grupo, nao por ofensiva. Os dois membros aqui
+   * ficam com ofensiva 1, entao pelo criterio antigo empatavam e o desempate
+   * seria o alfabeto. Quem fez o desafio que vale mais tem que ficar na frente.
+   */
+  test('ranking segue o ouro, nao a ofensiva', async ({ page }) => {
+    const tokenA = await logar(emailA, SENHA)
+    const tokenB = await logar(emailB, SENHA)
+
+    const grupo = await comoUsuario(tokenA, '/rest/v1/rpc/criar_grupo', {
+      method: 'POST',
+      body: { p_nome: `Placar ${carimbo}`, p_exige_foto: false },
+    })
+    const terceiroGrupo = (grupo.corpo as { id: string }).id
+    await comoUsuario(tokenB, '/rest/v1/rpc/entrar_grupo', {
+      method: 'POST',
+      body: { p_codigo: (grupo.corpo as { codigo: string }).codigo },
+    })
+
+    // A pega o desafio barato, B pega o caro.
+    const alvos = [
+      { titulo: 'Alongar', ouro: 3, token: tokenA, dono: idA },
+      { titulo: 'Treino pesado', ouro: 10, token: tokenB, dono: idB },
+    ]
+    for (const alvo of alvos) {
+      const desafio = await comoUsuario(tokenA, '/rest/v1/rpc/criar_habito', {
+        method: 'POST',
+        body: {
+          p_titulo: alvo.titulo,
+          p_regra: { tipo: 'diaria' },
+          p_icone: 'target',
+          p_lembrete: null,
+          p_ouro_base: alvo.ouro,
+          p_group_id: terceiroGrupo,
+        },
+      })
+      const habito = (desafio.corpo as { id: string }).id
+      const r = await comoUsuario(
+        alvo.token,
+        `/rest/v1/occurrences?select=id&habit_id=eq.${habito}&user_id=eq.${alvo.dono}&order=data_sp.asc&limit=1`,
+      )
+      const feito = await comoUsuario(alvo.token, '/rest/v1/rpc/check_in', {
+        method: 'POST',
+        body: { p_occ: (r.corpo as { id: string }[])[0].id, p_foto: null },
+      })
+      expect(feito.corpo, JSON.stringify(feito.corpo)).toMatchObject({ completou: true })
+    }
+
+    await entrarNoApp(page, emailA)
+    await page.goto(`/grupos/${terceiroGrupo}`)
+
+    await expect(page.getByRole('heading', { name: 'Ranking do mês' })).toBeVisible()
+
+    // A lista do acumulado e de cima para baixo, sem podio embaralhando a ordem.
+    const geral = page.getByRole('heading', { name: 'Desde o começo' }).locator('xpath=../..')
+    await expect(geral.locator('li').first()).toContainText(NOME_B)
+    await expect(geral.locator('li').nth(1)).toContainText('Você')
+  })
 })
