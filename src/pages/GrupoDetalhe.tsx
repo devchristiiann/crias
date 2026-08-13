@@ -1,4 +1,4 @@
-import { ArrowLeft, Camera, Loader2, Plus } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FeedGrupo } from '@/components/grupos/FeedGrupo'
@@ -87,14 +87,9 @@ export function GrupoDetalhe() {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Desafios
         </h2>
-        {/* Quem barra o check-in sem foto e o servidor. O aviso so evita que a
-            pessoa descubra isso na hora de marcar. */}
-        {grupo.exigeFoto && (
-          <p className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
-            <Camera className="size-4 shrink-0" />
-            Os check-ins deste grupo exigem foto.
-          </p>
-        )}
+        {/* A exigencia de foto vive na folha de administrar, junto do botao que
+            liga e desliga ela. Repetida aqui, virava um bloco fixo ocupando a
+            tela toda vez, e o proprio cartao do desafio ja mostra a camera. */}
         {grupo.desafios.length === 0 && (
           <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
             Nenhum desafio ainda. Crie um e ele entra na lista de todo mundo.
