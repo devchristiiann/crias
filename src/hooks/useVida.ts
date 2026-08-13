@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from './useSessao'
 
-export type MotivoVida = 'atraso' | 'recaida' | 'renascimento'
+export type MotivoVida = 'atraso' | 'recaida' | 'renascimento' | 'escudo'
 
 export interface VidaEvento {
   id: string
@@ -18,6 +18,9 @@ export const MOTIVO_EM_PORTUGUES: Record<MotivoVida, string> = {
   atraso: 'Atraso',
   recaida: 'Recaída',
   renascimento: 'Renascimento',
+  // O escudo some do saldo sem mexer na vida. Sem esta linha a trilha mostrava
+  // um evento em branco, que é justamente o que a lista existe para evitar.
+  escudo: 'Escudo usado, ofensiva salva',
 }
 
 /** O recente basta: a barra precisa explicar o que acabou de acontecer, não a vida inteira. */

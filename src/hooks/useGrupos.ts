@@ -101,6 +101,8 @@ export interface MembroGrupo {
   ouroMes: number
   /** Ouro ganho nos desafios deste grupo desde que o grupo existe. */
   ouroTotal: number
+  /** Personagem doente. O grupo precisa enxergar, entao a coluna vem na consulta. */
+  doente: boolean
 }
 
 /** Uma linha de `ranking_grupo`, ja na ordem do ranking. */
@@ -120,6 +122,7 @@ interface LinhaMembro {
     avatar_base: string
     item_equipado: string | null
     cenario_equipado: string | null
+    doente: boolean
   } | null
 }
 
@@ -152,7 +155,7 @@ export function useGrupo(grupoId: string | undefined) {
         supabase
           .from('groups')
           .select(
-            'id, nome, codigo_convite, dono_id, exige_foto, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado))',
+            'id, nome, codigo_convite, dono_id, exige_foto, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado, doente))',
           )
           .eq('id', grupoId!)
           .single(),
@@ -196,6 +199,7 @@ export function useGrupo(grupoId: string | undefined) {
             streakTotal: linha.streak_total,
             ouroMes: linha.ouro_mes,
             ouroTotal: linha.ouro_total,
+            doente: p.doente,
           }
         })
         .filter((m): m is MembroGrupo => m !== null)

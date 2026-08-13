@@ -3,6 +3,7 @@ import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { horaCurta } from '@/lib/data'
 import { rotuloFrequencia } from '@/lib/frequencia'
 import { iconeDoHabito } from '@/lib/icones'
+import { ehModuloHorario, estadoFaixa } from '@/lib/modulos'
 import { cn } from '@/lib/utils'
 
 export function CardOcorrencia({
@@ -16,6 +17,10 @@ export function CardOcorrencia({
   const feito = ocorrencia.status === 'feito'
   const atrasado = ocorrencia.status === 'atrasado'
   const parcial = ocorrencia.vezes_alvo > 1
+  // Faixa calculada no desenho, com o relogio do aparelho. E so vitrine: quem
+  // paga, e quem recusa, e o servidor no instante do check-in.
+  const porHorario = ehModuloHorario(ocorrencia.modulo)
+  const faixa = porHorario ? estadoFaixa(ocorrencia.modulo, ocorrencia.config, new Date()) : null
 
   return (
     <button
@@ -53,9 +58,22 @@ export function CardOcorrencia({
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
           <span>{rotuloFrequencia(ocorrencia.regra)}</span>
           {ocorrencia.lembrete && <span>{horaCurta(ocorrencia.lembrete)}</span>}
+          {porHorario && !feito && faixa && (
+            <span
+              className={cn(
+                'font-medium',
+                faixa.estado === 'encerrada' ? 'text-destructive' : 'text-foreground',
+              )}
+            >
+              {faixa.estado === 'aberta' && `Até ${faixa.faixa.ate}`}
+              {faixa.estado === 'antes' && `A partir das ${faixa.abre}`}
+              {faixa.estado === 'encerrada' && 'Faixa encerrada'}
+            </span>
+          )}
           {parcial && (
             <span className="font-medium text-foreground">
               {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo}
+              {ocorrencia.modulo === 'agua' && ' copos'}
             </span>
           )}
           {ocorrencia.grupoNome && (
@@ -76,7 +94,9 @@ export function CardOcorrencia({
 
       <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-muted-foreground">
         <Coins className="size-4" />
-        {ocorrencia.ouroBase}
+        {/* Em modulo de horario o valor e o da faixa que esta valendo agora, nao
+            o `ouro_base`, que guarda so a primeira faixa. */}
+        {porHorario && !feito ? (faixa?.faixa ? faixa.faixa.ouro : '—') : ocorrencia.ouroBase}
       </span>
     </button>
   )

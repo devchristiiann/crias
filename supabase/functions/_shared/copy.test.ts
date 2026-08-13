@@ -11,9 +11,11 @@ const BASE: Contexto = {
   ouro: 40,
   vida: 40,
   horas: 3,
+  feitas: 2,
+  alvo: 5,
 }
 
-const TOQUES: Toque[] = ['lembrete', 'cutucada', 'noite', 'consequencia']
+const TOQUES: Toque[] = ['lembrete', 'cutucada', 'noite', 'consequencia', 'alarme']
 
 describe('montarCopy', () => {
   it('e deterministico para a mesma semente', () => {
@@ -61,6 +63,19 @@ describe('montarCopy', () => {
         const { titulo, corpo } = montarCopy(toque, BASE, semente)
         expect(`${titulo} ${corpo}`).toMatch(/\d/)
       }
+    }
+  })
+
+  it('o alarme diz o progresso, e nao repete a copy do lembrete', () => {
+    const agua = { ...BASE, habito: 'Beber água', feitas: 2, alvo: 5 }
+    for (const semente of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      const alarme = montarCopy('alarme', agua, semente)
+      const texto = `${alarme.titulo} ${alarme.corpo}`
+      // Terceiro de cinco: o numero concreto do alarme e o progresso, nunca o
+      // ouro do lembrete comum.
+      expect(texto).toMatch(/3 de 5|Faltam 3/)
+      expect(texto).not.toContain('de ouro')
+      expect(alarme).not.toEqual(montarCopy('lembrete', agua, semente))
     }
   })
 

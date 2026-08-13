@@ -28,6 +28,17 @@ interface No {
   data?: string
 }
 
+/**
+ * No que paga bau.
+ *
+ * O servidor conta a partir de `profiles.bau_base`, que recebe a contagem atual
+ * quando a vida zera. Sem o deslocamento a tela desenhava bau onde nao paga e no
+ * comum onde paga, para todo mundo que ja zerou a vida uma vez.
+ */
+function ehBau(indice: number, bauBase: number): boolean {
+  return indice > bauBase && (indice - bauBase) % NOS_POR_BAU === 0
+}
+
 /** Centro horizontal do no. O maior raio entra na conta para nada sair da faixa. */
 function centroX(indice: number): number {
   return NO_BAU / 2 + DESLOCAMENTO[indice % DESLOCAMENTO.length]
@@ -58,12 +69,16 @@ export function Trilha({
   itemEquipado,
   cenarioEquipado,
   fundoEquipado,
+  doente = false,
+  bauBase = 0,
 }: {
   diasProdutivos: string[]
   avatarBase: string
   itemEquipado: string | null
   cenarioEquipado: string | null
   fundoEquipado: string | null
+  doente?: boolean
+  bauBase?: number
 }) {
   // Id fora do catalogo, ou de outro slot, nao desenha nada: e melhor o bloco de
   // sempre do que imagem quebrada, ou um personagem esticado, atras da trilha.
@@ -150,7 +165,7 @@ export function Trilha({
           </svg>
 
           {nos.map((no, posicao) => {
-            const bau = no.indice % NOS_POR_BAU === 0
+            const bau = ehBau(no.indice, bauBase)
             const lado = bau ? NO_BAU : NO
             const x = centroX(no.indice)
             const y = centroY(posicao)
@@ -231,6 +246,7 @@ export function Trilha({
                 item={itemEquipado}
                 cenario={cenarioEquipado}
                 tamanho={AVATAR}
+                doente={doente}
               />
             </div>
           </div>

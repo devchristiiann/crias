@@ -54,6 +54,9 @@ export function BottomNav() {
               item={perfil?.item_equipado}
               cenario={perfil?.cenario_equipado}
               tamanho={40}
+              // O personagem doente aparece doente em todo lugar que ele
+              // aparece. Um boneco são no menu desmentiria a própria trilha.
+              doente={perfil?.doente}
             />
           </NavLink>
         </li>

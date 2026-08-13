@@ -15,6 +15,7 @@ import { useSessao } from '@/hooks/useSessao'
 import { CATALOGO, POR_ID } from '@/lib/catalogo'
 import { rotuloFrequencia } from '@/lib/frequencia'
 import { iconeDoHabito } from '@/lib/icones'
+import { ehModuloHorario, estadoFaixa } from '@/lib/modulos'
 
 export type FaceBau =
   | { visual: 'ouro'; rotulo: string }
@@ -139,14 +140,33 @@ export function FolhaDesafio({
   const deGrupo = ocorrencia.grupoId !== null
   const podeExcluir = !deGrupo || ocorrencia.grupoDonoId === usuarioId
   const face = faceDoPremio(resultado?.premio)
+  // Faixa pelo relogio do aparelho, so para a tela. Quem paga e quem recusa e o
+  // servidor: se os dois discordarem, o servidor esta certo e devolve
+  // `fora_da_faixa`, que o hook ja traduz.
+  const porHorario = ehModuloHorario(ocorrencia.modulo)
+  const faixa = porHorario ? estadoFaixa(ocorrencia.modulo, ocorrencia.config, new Date()) : null
+  // Antes de abrir a janela o Concluir some igual, mas o motivo e outro: a faixa
+  // ainda vai valer, entao a tela diz a partir de que horas, nao que encerrou.
+  const faixaAberta = !porHorario || faixa?.estado === 'aberta'
   // A trava de verdade e a RPC. Aqui a tela so evita um Concluir que ja nasceria
-  // recusado pelo servidor.
-  const exigeFoto = ocorrencia.grupoExigeFoto
+  // recusado pelo servidor. Acordar e dormir exigem foto sempre, independente do
+  // grupo: e a prova social do horario.
+  const exigeFoto = ocorrencia.grupoExigeFoto || porHorario
   // A RPC aceita `coalesce(p_foto, o.foto_path)`: foto ja enviada num periodo
   // de varias vezes continua valendo, e travar aqui recusaria o que o servidor
   // aprovaria.
   const temFoto = Boolean(foto) || Boolean(ocorrencia.foto_path)
   const faltaFoto = exigeFoto && !temFoto
+  // Duas contas diferentes na mesma RPC, e a frase precisa dizer qual delas vai
+  // rodar. Marcação que ainda não pagou volta uma unidade só, e prometer que o
+  // período inteiro cai faria a pessoa desistir de corrigir um copo a mais.
+  const detalheDesmarcar = !feito
+    ? ocorrencia.modulo === 'agua'
+      ? 'Volta um copo, sem mexer no ouro.'
+      : 'Volta uma marcação, sem mexer no ouro.'
+    : ocorrencia.vezes_alvo > 1
+      ? 'Todas as marcações deste período voltam atrás, com o ouro.'
+      : 'O ouro deste check-in volta atrás.'
 
   return (
     <Folha aberta aoFechar={fechar} titulo={ocorrencia.titulo}>
@@ -167,12 +187,19 @@ export function FolhaDesafio({
               <dt className="text-xs text-muted-foreground">Ouro</dt>
               <dd className="flex items-center justify-center gap-1 font-semibold">
                 <Coins className="size-4" />
-                {ocorrencia.ouroBase}
+                {/* O valor e o da faixa vigente. `ouro_base` guarda so a
+                    primeira faixa e mentiria depois das seis da manha. */}
+                {porHorario ? (faixa?.faixa ? faixa.faixa.ouro : '—') : ocorrencia.ouroBase}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Frequência</dt>
-              <dd className="truncate text-sm font-medium">{rotuloFrequencia(ocorrencia.regra)}</dd>
+              <dt className="text-xs text-muted-foreground">{porHorario ? 'Faixa' : 'Frequência'}</dt>
+              <dd className="truncate text-sm font-medium">
+                {!porHorario && rotuloFrequencia(ocorrencia.regra)}
+                {faixa?.estado === 'aberta' && `Até ${faixa.faixa.ate}`}
+                {faixa?.estado === 'antes' && `Abre ${faixa.abre}`}
+                {faixa?.estado === 'encerrada' && 'Encerrada'}
+              </dd>
             </div>
           </dl>
         </div>
@@ -185,11 +212,19 @@ export function FolhaDesafio({
           </p>
         )}
 
-        {ocorrencia.vezes_alvo > 1 && (
-          <p className="text-sm text-muted-foreground">
-            Você marcou {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo} vezes neste período.
-          </p>
-        )}
+        {ocorrencia.vezes_alvo > 1 &&
+          (ocorrencia.modulo === 'agua' ? (
+            // Água paga uma vez só, ao fechar o dia. Sem esta linha, quem marca
+            // o primeiro copo e não vê ouro nenhum acha que o check-in falhou.
+            <p className="text-sm text-muted-foreground">
+              Você bebeu {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo} copos hoje. O ouro
+              entra quando fechar os {ocorrencia.vezes_alvo}.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Você marcou {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo} vezes neste período.
+            </p>
+          ))}
 
         {resultado?.bau && face && <RevelacaoBau face={face} no={resultado.no} />}
 
@@ -209,13 +244,28 @@ export function FolhaDesafio({
             excecao la, e a tela nao confere mais o corpo por fora. */}
         {checkIn.error && <p className="text-sm text-destructive">{checkIn.error.message}</p>}
 
-        {!feito && (
+        {/* Botão sumindo é conforto. Quem barra de verdade é a RPC, que devolve
+            `fora_da_faixa` mesmo com a folha aberta desde antes do horário. */}
+        {!feito && faixa?.estado === 'encerrada' && (
+          <p className="text-sm text-destructive">
+            A última faixa de horário já passou. Este check-in não conta mais hoje.
+          </p>
+        )}
+
+        {!feito && faixa?.estado === 'antes' && (
+          <p className="text-sm text-muted-foreground">
+            Vale {faixa.faixa.ouro} de ouro. Dá para marcar a partir das {faixa.abre}.
+          </p>
+        )}
+
+        {!feito && faixaAberta && (
           <>
             <input
               ref={entradaArquivo}
               type="file"
               accept="image/*"
-              capture="environment"
+              // Acordar e dormir pedem selfie: foto do quarto não prova nada.
+              capture={porHorario ? 'user' : 'environment'}
               className="hidden"
               onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
             />
@@ -230,7 +280,9 @@ export function FolhaDesafio({
 
             {faltaFoto && (
               <p className="text-sm text-muted-foreground">
-                Este grupo só aceita check-in com foto.
+                {porHorario
+                  ? 'Anexe uma foto para concluir esta rotina.'
+                  : 'Este grupo só aceita check-in com foto.'}
               </p>
             )}
 
@@ -291,13 +343,7 @@ export function FolhaDesafio({
           aberta={desmarcando}
           aoFechar={() => setDesmarcando(false)}
           titulo="Marcar como não feito?"
-          // A RPC zera `vezes_feitas` inteiro e estorna o acumulado: dizer "este
-          // check-in" esconderia que o periodo todo volta.
-          detalhe={
-            ocorrencia.vezes_alvo > 1
-              ? 'Todas as marcações deste período voltam atrás.'
-              : 'O ouro deste check-in volta atrás.'
-          }
+          detalhe={detalheDesmarcar}
           rotuloConfirmar="Desmarcar"
           perigo
           carregando={desfazer.isPending}

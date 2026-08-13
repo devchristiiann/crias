@@ -34,7 +34,11 @@ export function BarraVida({ vida }: { vida: number }) {
       <ul className="space-y-0.5 pt-1 text-xs text-muted-foreground">
         <li>Rotina parada por 24 horas tira 10.</li>
         <li>Recaída de hábito de perda tira 5.</li>
-        <li>Vida em zero: toda ofensiva volta ao começo e a vida enche de novo.</li>
+        <li>
+          Vida em zero: o personagem adoece, o progresso do baú volta ao começo e a vida enche de
+          novo. Suas ofensivas ficam de pé.
+        </li>
+        <li>Escudo guardado salva as ofensivas do dia inteiro no primeiro vacilo.</li>
       </ul>
     </div>
   )

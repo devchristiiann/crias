@@ -16,6 +16,14 @@ export interface Perfil {
    *  passo do onboarding. E este o sinal de "ja fez o onboarding" que o guarda
    *  de rota le. Quem tem `true` nunca mais volta para la. */
   personagem_definido: boolean
+  /** Vida chegou a zero. Sai por `curar()`, nunca por escrita do cliente. */
+  doente: boolean
+  /** Escudos guardados. Cada um salva as ofensivas de um dia inteiro. */
+  escudos: number
+  /** Dia produtivo em que a contagem do baú recomeçou. Zerar a vida joga o
+   *  progresso fora sem apagar histórico, e é daqui que a trilha desloca o
+   *  desenho: sem isso ela marcaria baú num nó que o servidor não paga. */
+  bau_base: number
 }
 
 export function usePerfil() {
@@ -30,7 +38,7 @@ export function usePerfil() {
         // Colunas listadas uma a uma de proposito: com select('*') qualquer
         // coluna sensivel nova vaza para o navegador sem ninguem perceber.
         .select(
-          'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido',
+          'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido, doente, escudos, bau_base',
         )
         .eq('id', usuarioId!)
         // `maybeSingle` porque `single` erra quando nao ha linha, e o erro dele

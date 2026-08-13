@@ -206,6 +206,7 @@ function ItemPodio({
           item={membro.itemEquipado}
           cenario={membro.cenarioEquipado}
           tamanho={primeiro ? 72 : 52}
+          doente={membro.doente}
         />
       </span>
       <span className="w-full truncate text-center text-sm font-medium">
@@ -259,6 +260,7 @@ function LinhaRanking({
         item={membro.itemEquipado}
         cenario={membro.cenarioEquipado}
         tamanho={40}
+        doente={membro.doente}
       />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">

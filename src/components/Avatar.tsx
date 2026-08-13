@@ -1,3 +1,4 @@
+import { Thermometer } from 'lucide-react'
 import { fonteLegado } from '@/components/AvatarLegado'
 import { LADO_SPRITE, PERSONAGEM_PADRAO, POR_ID, type Peca, type Slot } from '@/lib/catalogo'
 import { cn } from '@/lib/utils'
@@ -91,10 +92,12 @@ interface Props {
   cenario?: string | null
   /** Lado da caixa em pixels de tela. */
   tamanho?: number
+  /** Personagem doente: sprite sem cor e selo de febre no canto. */
+  doente?: boolean
   className?: string
 }
 
-export function Avatar({ base, item, cenario, tamanho = 64, className }: Props) {
+export function Avatar({ base, item, cenario, tamanho = 64, doente = false, className }: Props) {
   const legado = base?.startsWith('base-') ? base : null
   const itemLegado = item?.startsWith('item-') ? item : null
   // Id de personagem que nao existe mais cai no padrao: melhor o boneco errado
@@ -118,11 +121,13 @@ export function Avatar({ base, item, cenario, tamanho = 64, className }: Props) 
     />
   )
 
-  return (
-    <span
-      className={cn('relative block shrink-0 select-none', className)}
-      style={{ width: tamanho, height: tamanho }}
-    >
+  // O selo fica FORA da camada que leva o filtro: filtro de CSS vale para a
+  // subarvore inteira e um filho nao desfaz o do pai, entao um selo por dentro
+  // sairia sem cor junto com o boneco.
+  const selo = Math.max(13, Math.round(tamanho * 0.32))
+
+  const camadas = (
+    <>
       {cena && (
         <img
           src={cena.arquivo}
@@ -159,6 +164,37 @@ export function Avatar({ base, item, cenario, tamanho = 64, className }: Props) 
       )}
 
       {!atras && camadaAcessorio}
+    </>
+  )
+
+  return (
+    <span
+      className={cn('relative block shrink-0 select-none', className)}
+      style={{ width: tamanho, height: tamanho }}
+    >
+      {doente ? (
+        <span className="absolute inset-0 grayscale-[0.85] contrast-75 brightness-95">
+          {camadas}
+        </span>
+      ) : (
+        camadas
+      )}
+
+      {doente && (
+        <>
+          {/* Cor sozinha nao pode ser o sinal: quem nao distingue o cinza do
+              boneco ainda ve o termometro. */}
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full
+                       bg-destructive text-destructive-foreground ring-2 ring-card"
+            style={{ width: selo, height: selo }}
+          >
+            <Thermometer style={{ width: selo * 0.6, height: selo * 0.6 }} />
+          </span>
+          <span className="sr-only">Doente</span>
+        </>
+      )}
     </span>
   )
 }

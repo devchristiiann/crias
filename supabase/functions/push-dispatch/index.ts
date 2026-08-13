@@ -25,6 +25,10 @@ interface LinhaToque {
   ouro: number
   vida: number
   horas: number
+  // Progresso do dia. So o toque 'alarme' usa, mas vem em toda linha: a RPC nao
+  // tem por que devolver coluna condicional.
+  vezes_feitas: number
+  vezes_alvo: number
   endpoint: string
   p256dh: string
   auth: string
@@ -94,6 +98,8 @@ Deno.serve(async (requisicao) => {
         ouro: linha.ouro,
         vida: linha.vida,
         horas: linha.horas,
+        feitas: linha.vezes_feitas ?? 0,
+        alvo: linha.vezes_alvo ?? 1,
       },
       linha.occurrence_id,
     )

@@ -1,6 +1,7 @@
 import { Coins, Loader2 } from 'lucide-react'
 import { BarraVida } from '@/components/perfil/BarraVida'
 import { CalendarioOfensiva } from '@/components/perfil/CalendarioOfensiva'
+import { Protecoes } from '@/components/perfil/Protecoes'
 import { Trilha } from '@/components/trilha/Trilha'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { usePerfil } from '@/hooks/usePerfil'
@@ -64,10 +65,13 @@ export function MinhaTrilha() {
         itemEquipado={perfil.item_equipado}
         cenarioEquipado={perfil.cenario_equipado}
         fundoEquipado={perfil.fundo_equipado}
+        doente={perfil.doente}
+        bauBase={perfil.bau_base}
       />
 
       <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
         <BarraVida vida={perfil.vida} />
+        <Protecoes doente={perfil.doente} escudos={perfil.escudos} />
         <HistoricoVida />
       </div>
 

@@ -10,7 +10,7 @@
  * duas linhas no maximo. Sem emoji, sem hifen como pontuacao.
  */
 
-export type Toque = 'lembrete' | 'cutucada' | 'noite' | 'consequencia'
+export type Toque = 'lembrete' | 'cutucada' | 'noite' | 'consequencia' | 'alarme'
 
 export interface Contexto {
   nome: string
@@ -22,6 +22,10 @@ export interface Contexto {
   ouro: number
   vida: number
   horas: number
+  /** Marcacoes ja feitas hoje nessa ocorrencia. So o alarme usa. */
+  feitas: number
+  /** Marcacoes que fecham o dia. So o alarme usa. */
+  alvo: number
 }
 
 export interface Frase {
@@ -83,6 +87,23 @@ const VARIANTES: Record<Toque, ((c: Contexto) => Frase)[]> = {
           : `${c.habito} ainda dá tempo. ${c.ouro} de ouro.`,
     }),
   ],
+  // Multialarme. Sao ate 10 toques no mesmo dia, entao o numero concreto e o
+  // progresso: repetir a frase do lembrete cinco vezes por dia e o caminho mais
+  // curto para a pessoa desligar o push.
+  alarme: [
+    (c) => ({
+      titulo: `${c.habito}: ${c.feitas + 1} de ${c.alvo}`,
+      corpo: `Faltam ${c.alvo - c.feitas} para fechar o dia. Marca esse agora.`,
+    }),
+    (c) => ({
+      titulo: `${primeiroNome(c.nome)}, é o ${c.feitas + 1} de ${c.alvo}`,
+      corpo: `${c.habito} agora. Dois toques e volta ao que estava fazendo.`,
+    }),
+    (c) => ({
+      titulo: `Faltam ${c.alvo - c.feitas} para o dia fechar`,
+      corpo: `${c.feitas} de ${c.alvo} até aqui. Vai no próximo, ${primeiroNome(c.nome)}.`,
+    }),
+  ],
   consequencia: [
     (c) => ({
       titulo: 'Perdeu 10 de vida',
@@ -104,6 +125,10 @@ function indicePorSemente(semente: string, total: number) {
 }
 
 export function montarCopy(toque: Toque, contexto: Contexto, semente: string): Frase {
-  const lista = VARIANTES[toque]
+  // Rotulo desconhecido cai no lembrete em vez de derrubar o lote inteiro. A
+  // migration do banco e o deploy da function sao dois passos: entre um e outro
+  // a RPC pode devolver um toque que este arquivo ainda nao conhece, e o push e
+  // o pilar do produto.
+  const lista = VARIANTES[toque] ?? VARIANTES.lembrete
   return lista[indicePorSemente(semente, lista.length)](contexto)
 }

@@ -45,8 +45,11 @@ export interface ResultadoDesfazer {
 
 /** Erros de `check_in` traduzidos. O codigo cru nunca vai para a tela. */
 const ERROS_CHECK_IN: Record<string, string> = {
-  foto_obrigatoria: 'Este grupo só aceita check-in com foto.',
+  // Vale para o grupo que exige foto e para acordar e dormir, que exigem
+  // sempre. Nomear o grupo aqui mentiria na metade dos casos.
+  foto_obrigatoria: 'Anexe uma foto para concluir esta rotina.',
   foto_invalida: 'Não deu para usar essa foto. Tente outra.',
+  fora_da_faixa: 'A última faixa de horário já passou. Este check-in não conta mais hoje.',
   ocorrencia_futura: 'Este desafio ainda não abriu.',
   ocorrencia_invalida: 'Não encontramos este desafio.',
 }

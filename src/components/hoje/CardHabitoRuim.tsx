@@ -127,7 +127,8 @@ export function CardHabitoRuim({ habito }: { habito: HabitoRuim }) {
             .
             {resultado.renasceu && (
               <span className="mt-1 block text-muted-foreground">
-                A vida zerou. A ofensiva voltou ao começo e a vida encheu de novo.
+                A vida zerou. O personagem adoeceu, o progresso do baú voltou ao começo e a vida
+                encheu de novo.
               </span>
             )}
           </p>
