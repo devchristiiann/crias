@@ -310,6 +310,9 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
       : perfil?.fundo_equipado
 
   const daAba = (itens ?? []).filter((i) => i.slot === aba)
+  // Personagem sempre tem um vestido, entao so os outros slots ganham a opcao de nada.
+  const temNenhum = aba !== 'personagem'
+  const vazio = !equipadoNoSlot(aba)
 
   return (
     <div className="space-y-3">
@@ -321,7 +324,9 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
       <div className="-mx-4 overflow-x-auto px-4">
         <div role="tablist" className="flex w-max gap-2">
           {PRATELEIRAS.map((p) => {
-            const total = (itens ?? []).filter((i) => i.slot === p.slot).length
+            // O que importa para quem coleciona e quanto ja e seu, nao quanto existe.
+            const doSlot = (itens ?? []).filter((i) => i.slot === p.slot)
+            const meus = doSlot.filter((i) => i.possui).length
             return (
               <button
                 key={p.slot}
@@ -337,7 +342,9 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
                 )}
               >
                 {p.rotulo}
-                <span className="ml-1.5 tabular-nums opacity-70">{total}</span>
+                <span className="ml-1.5 text-xs tabular-nums opacity-70">
+                  {meus}/{doSlot.length}
+                </span>
               </button>
             )
           })}
@@ -349,6 +356,36 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
       <ul className="grid grid-cols-2 gap-2">
+        {/* Tirar tem que ser tao facil quanto vestir: a opcao de nada e o primeiro
+            cartao da grade, no mesmo formato dos outros. */}
+        {temNenhum && (
+          <li
+            className={cn(
+              'flex flex-col items-center gap-2 rounded-xl border bg-card p-3 shadow-sm',
+              vazio ? 'border-primary' : 'border-border',
+            )}
+          >
+            <span className="flex h-20 items-end justify-center">
+              <span
+                aria-hidden
+                className="size-20 rounded-lg border-2 border-dashed border-border"
+              />
+            </span>
+
+            <span className="text-center text-sm font-medium leading-tight">Nenhum</span>
+
+            <Botao
+              variante={vazio ? 'secundario' : 'primario'}
+              className="w-full"
+              disabled={vazio}
+              carregando={equipar.isPending && equipar.variables?.id === null}
+              onClick={() => equipar.mutate({ id: null, slot: aba })}
+            >
+              {vazio ? 'Vestido' : 'Vestir'}
+            </Botao>
+          </li>
+        )}
+
         {daAba.map((item) => (
           <CartaoPeca
             key={item.id}

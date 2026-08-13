@@ -45,10 +45,9 @@ export function ExcluirRotina({
     },
     onSuccess: () => {
       // Mesmas chaves que `criar_habito` invalida: a rotina entra e sai das
-      // mesmas listas, e o guarda de rota le `tem-habito` do cache.
+      // mesmas listas.
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
-      cliente.invalidateQueries({ queryKey: ['tem-habito'] })
       setConfirmando(false)
       aoExcluir?.()
     },

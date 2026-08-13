@@ -12,6 +12,10 @@ export interface Perfil {
   ouro: number
   vida: number
   xp: number
+  /** Marca de que a conta ja passou pela escolha de personagem, o primeiro
+   *  passo do onboarding. E este o sinal de "ja fez o onboarding" que o guarda
+   *  de rota le. Quem tem `true` nunca mais volta para la. */
+  personagem_definido: boolean
 }
 
 export function usePerfil() {
@@ -25,7 +29,9 @@ export function usePerfil() {
         .from('profiles')
         // Colunas listadas uma a uma de proposito: com select('*') qualquer
         // coluna sensivel nova vaza para o navegador sem ninguem perceber.
-        .select('id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp')
+        .select(
+          'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido',
+        )
         .eq('id', usuarioId!)
         .single()
       if (error) throw error

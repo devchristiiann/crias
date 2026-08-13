@@ -225,10 +225,9 @@ function PassoGrupo({ aoAvancar }: { aoAvancar: () => void }) {
   const [codigo, setCodigo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
-  // A RotaProtegida decide o redirect lendo `tem-habito` do cache, e esse cache
-  // foi preenchido com `false` antes do onboarding criar o habito. Sem o
-  // refetch aqui, a navegacao final devolve o usuario para o passo 1 do
-  // proprio onboarding.
+  // O onboarding inteiro criou perfil, habito e agora grupo. O cache foi
+  // preenchido antes de tudo isso existir, entao o app abriria com listas
+  // vazias. Invalidar tudo aqui e mais barato que rastrear chave por chave.
   async function finalizar() {
     await cliente.invalidateQueries()
     aoAvancar()

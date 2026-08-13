@@ -59,12 +59,11 @@ export function FormularioHabito({
     onSuccess: () => {
       setTitulo('')
       setErro(null)
-      // Estas tres chaves existem de verdade. `habitos` nao existia em useQuery
+      // Estas duas chaves existem de verdade. `habitos` nao existia em useQuery
       // nenhum, entao criar desafio no grupo fechava a folha e a lista ficava
-      // velha, e o guarda de rota continuava achando que o usuario nao tem habito.
+      // velha.
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
-      cliente.invalidateQueries({ queryKey: ['tem-habito'] })
       aoCriar?.()
     },
     onError: (e: Error) => setErro(e.message),
