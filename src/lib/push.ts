@@ -77,6 +77,31 @@ export async function assinarPush(): Promise<ResultadoPush> {
   return 'ok'
 }
 
+/**
+ * O Service Worker avisa quando o navegador trocou o endereco da assinatura.
+ * Ele nao tem sessao para gravar no banco, entao quem grava e o app.
+ */
+export async function trocarAssinatura(antiga: string | null, nova: PushSubscriptionJSON) {
+  const { data: sessao } = await supabase.auth.getUser()
+  if (!sessao.user || !nova.endpoint) return
+
+  const { error } = await supabase.from('push_subs').upsert(
+    {
+      user_id: sessao.user.id,
+      endpoint: nova.endpoint,
+      p256dh: nova.keys?.p256dh ?? '',
+      auth: nova.keys?.auth ?? '',
+      ultimo_ok: new Date().toISOString(),
+    },
+    { onConflict: 'endpoint' },
+  )
+  if (error) throw error
+
+  if (antiga && antiga !== nova.endpoint) {
+    await supabase.from('push_subs').delete().eq('endpoint', antiga)
+  }
+}
+
 export function permissaoAtual(): NotificationPermission | 'indisponivel' {
   if (!pushSuportado()) return 'indisponivel'
   return Notification.permission

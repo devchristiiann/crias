@@ -11,7 +11,7 @@ import { ScrollToTop } from '@/components/ScrollToTop'
 import { RotaProtegida } from '@/components/auth/RotaProtegida'
 import { AppShell } from '@/components/layout/AppShell'
 import { ThemeProvider } from '@/contexts/ThemeProvider'
-import { registrarServiceWorker } from '@/lib/push'
+import { assinarPush, permissaoAtual, registrarServiceWorker, trocarAssinatura } from '@/lib/push'
 import { Entrar } from '@/pages/Entrar'
 import { GrupoDetalhe } from '@/pages/GrupoDetalhe'
 import { Grupos } from '@/pages/Grupos'
@@ -35,8 +35,22 @@ function OuvinteDoServiceWorker() {
     if (!('serviceWorker' in navigator)) return
 
     function aoReceber(evento: MessageEvent) {
-      if (evento.data?.tipo === 'abrir' && typeof evento.data.url === 'string') {
-        navegar(evento.data.url)
+      const dados = evento.data
+
+      if (dados?.tipo === 'abrir' && typeof dados.url === 'string') {
+        navegar(dados.url)
+        return
+      }
+
+      // O navegador girou o endereco da assinatura. Sem gravar o novo e apagar
+      // o antigo, o push para de chegar e ninguem percebe.
+      if (dados?.tipo === 'push-reassinado' && dados.nova) {
+        void trocarAssinatura(dados.antiga ?? null, dados.nova)
+        return
+      }
+
+      if (dados?.tipo === 'push-precisa-reassinar' && permissaoAtual() === 'granted') {
+        void assinarPush()
       }
     }
 
