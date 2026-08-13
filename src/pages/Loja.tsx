@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
+import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useSessao } from '@/hooks/useSessao'
@@ -64,7 +65,7 @@ function Premios({
   const [custo, setCusto] = useState(50)
   const [erro, setErro] = useState<string | null>(null)
 
-  const { data: premios, isPending } = useQuery({
+  const { data: premios, isPending, isError, refetch } = useQuery({
     queryKey: ['premios', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<Premio[]> => {
@@ -124,10 +125,21 @@ function Premios({
 
       {isPending && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
 
-      {!isPending && (premios ?? []).length === 0 && (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-          Cadastre o que você quer ganhar. Um filme com a família, cinquenta reais livres, uma folga.
-        </p>
+      {isError && (
+        <EstadoErro mensagem="Não deu para carregar seus prêmios." aoTentarDeNovo={refetch} />
+      )}
+
+      {!isPending && !isError && (premios ?? []).length === 0 && (
+        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            Cadastre o que você quer ganhar. Um filme com a família, cinquenta reais livres, uma
+            folga.
+          </p>
+          <Botao variante="secundario" className="w-full" onClick={aoCriar}>
+            <Plus className="size-4" />
+            Novo prêmio
+          </Botao>
+        </div>
       )}
 
       <ul className="space-y-2">
@@ -156,8 +168,15 @@ function Premios({
               <button
                 type="button"
                 aria-label={`Remover ${p.titulo}`}
-                onClick={() => arquivar.mutate(p.id)}
-                className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive"
+                disabled={arquivar.isPending}
+                onClick={() => {
+                  // Confirmacao nomeia o premio: e acao destrutiva, e o alvo
+                  // fica ao lado do botao de resgatar.
+                  if (window.confirm(`Remover o prêmio ${p.titulo}?`)) arquivar.mutate(p.id)
+                }}
+                className="flex size-11 shrink-0 items-center justify-center rounded-md
+                           text-muted-foreground hover:bg-accent hover:text-destructive
+                           disabled:opacity-50"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -166,12 +185,14 @@ function Premios({
         })}
       </ul>
 
-      {erro && <p className="text-sm text-destructive">{erro}</p>}
+      {erro && !criando && <p className="text-sm text-destructive">{erro}</p>}
 
-      <Botao variante="secundario" className="w-full" onClick={aoCriar}>
-        <Plus className="size-4" />
-        Novo prêmio
-      </Botao>
+      {(premios ?? []).length > 0 && (
+        <Botao variante="secundario" className="w-full" onClick={aoCriar}>
+          <Plus className="size-4" />
+          Novo prêmio
+        </Botao>
+      )}
 
       <Folha aberta={criando} aoFechar={() => setCriando(false)} titulo="Novo prêmio">
         <div className="space-y-4">
@@ -193,6 +214,10 @@ function Premios({
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </label>
+          {/* Dentro da folha: com o modal aberto, um erro renderizado atras
+              fica invisivel e o usuario nao descobre por que falhou. */}
+          {erro && criando && <p className="text-sm text-destructive">{erro}</p>}
+
           <Botao
             tamanho="lg"
             className="w-full"

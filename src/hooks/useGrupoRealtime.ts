@@ -11,13 +11,16 @@ import { supabase } from '@/lib/supabase'
  */
 export function useGrupoRealtime(grupoId: string | undefined, habitIds: string[]) {
   const cliente = useQueryClient()
+  // A lista chega como array novo a cada render. Serializar aqui e reconstruir
+  // dentro do efeito e o que impede o canal de ser derrubado e reassinado a
+  // cada render, que era exatamente o que este hook existe para evitar.
   const chave = habitIds.join(',')
 
   useEffect(() => {
-    if (!grupoId || habitIds.length === 0) return
+    if (!grupoId || chave === '') return
 
     const canal = supabase.channel(`grupo_rt_${crypto.randomUUID()}`)
-    const alvo = new Set(habitIds)
+    const alvo = new Set(chave.split(','))
 
     canal
       .on(
@@ -35,6 +38,5 @@ export function useGrupoRealtime(grupoId: string | undefined, habitIds: string[]
     return () => {
       void supabase.removeChannel(canal)
     }
-    // `chave` serializa a lista: dependencia de array remontaria o canal a cada render.
-  }, [grupoId, chave, cliente, habitIds])
+  }, [grupoId, chave, cliente])
 }

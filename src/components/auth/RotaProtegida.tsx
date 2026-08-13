@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Botao } from '@/components/ui/Botao'
 import { useSessao } from '@/hooks/useSessao'
 import { supabase } from '@/lib/supabase'
 
@@ -16,7 +17,7 @@ export function RotaProtegida() {
   const { sessao, carregando, usuarioId } = useSessao()
   const local = useLocation()
 
-  const { data: temHabito, isPending } = useQuery({
+  const { data: temHabito, isPending, isError, refetch } = useQuery({
     queryKey: ['tem-habito', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async () => {
@@ -32,6 +33,17 @@ export function RotaProtegida() {
   if (carregando) return <Carregando />
   if (!sessao) return <Navigate to="/entrar" replace />
   if (isPending) return <Carregando />
+
+  // Falha de rede nao pode virar redirecionamento. Sem este ramo, quem ja tem
+  // habito era jogado de volta no onboarding toda vez que a consulta falhava.
+  if (isError) {
+    return (
+      <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-4 px-5">
+        <p className="text-sm">Não deu para carregar seus dados.</p>
+        <Botao onClick={() => refetch()}>Tentar de novo</Botao>
+      </div>
+    )
+  }
 
   // So empurra PARA o onboarding. Nao empurra de volta: os passos 3 e 4 acontecem
   // depois do habito existir, e um redirect aqui expulsaria o usuario no meio.

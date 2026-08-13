@@ -5,6 +5,7 @@ import { BarraVida } from '@/components/perfil/BarraVida'
 import { CalendarioOfensiva } from '@/components/perfil/CalendarioOfensiva'
 import { Trilha } from '@/components/trilha/Trilha'
 import { Botao } from '@/components/ui/Botao'
+import { EstadoErro } from '@/components/ui/EstadoErro'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useTrilha } from '@/hooks/useTrilha'
@@ -20,21 +21,33 @@ const TEXTO_PUSH: Record<ResultadoPush, string> = {
 
 export function Perfil() {
   const { tema, alternar } = useTheme()
-  const { data: perfil, isPending } = usePerfil()
+  const { data: perfil, isPending, isError, refetch } = usePerfil()
   const { data: trilha } = useTrilha()
   const [resultadoPush, setResultadoPush] = useState<ResultadoPush | null>(null)
+  const [erroPush, setErroPush] = useState<string | null>(null)
 
   const ligarPush = useMutation({
     mutationFn: assinarPush,
-    onSuccess: setResultadoPush,
+    onSuccess: (r) => {
+      setErroPush(null)
+      setResultadoPush(r)
+    },
+    onError: () => setErroPush('Não deu para ativar as notificações neste aparelho.'),
   })
 
-  if (isPending || !perfil) {
+  const sair = useMutation({ mutationFn: () => supabase.auth.signOut() })
+
+  if (isPending) {
     return (
       <div className="flex justify-center py-16">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     )
+  }
+
+  // Sem este ramo a tela ficava em spinner para sempre quando a consulta falhava.
+  if (isError || !perfil) {
+    return <EstadoErro mensagem="Não deu para carregar seu perfil." aoTentarDeNovo={refetch} />
   }
 
   const dias = trilha?.diasProdutivos ?? []
@@ -83,6 +96,8 @@ export function Perfil() {
           <p className="text-sm text-muted-foreground">{TEXTO_PUSH[resultadoPush]}</p>
         )}
 
+        {erroPush && <p className="text-sm text-destructive">{erroPush}</p>}
+
         <Botao variante="secundario" className="w-full justify-between" onClick={alternar}>
           Tema {tema === 'dark' ? 'escuro' : 'claro'}
           {tema === 'dark' ? <Moon className="size-4" /> : <Sun className="size-4" />}
@@ -91,7 +106,10 @@ export function Perfil() {
         <Botao
           variante="fantasma"
           className="w-full justify-between"
-          onClick={() => supabase.auth.signOut()}
+          carregando={sair.isPending}
+          onClick={() => {
+            if (window.confirm('Sair da sua conta neste aparelho?')) sair.mutate()
+          }}
         >
           Sair
           <LogOut className="size-4" />

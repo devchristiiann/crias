@@ -19,6 +19,7 @@ import { Hoje } from '@/pages/Hoje'
 import { Loja } from '@/pages/Loja'
 import { Onboarding } from '@/pages/Onboarding'
 import { Perfil } from '@/pages/Perfil'
+import { RedefinirSenha } from '@/pages/RedefinirSenha'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,10 @@ export function App() {
           <OuvinteDoServiceWorker />
           <Routes>
             <Route path="/entrar" element={<Entrar />} />
+            {/* Fora da RotaProtegida: a sessao de recuperacao ja e uma sessao
+                valida, e o guarda mandaria o usuario para dentro do app antes
+                de ele conseguir trocar a senha. */}
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             <Route element={<RotaProtegida />}>
               <Route path="/onboarding" element={<Onboarding />} />
               <Route element={<AppShell />}>

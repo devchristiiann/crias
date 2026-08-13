@@ -39,10 +39,15 @@ export async function assinarPush(): Promise<ResultadoPush> {
   if (!pushSuportado()) return 'sem_suporte'
   if (precisaInstalarAntes()) return 'instalar_primeiro'
 
+  const chavePublica = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  // Falha alto em vez de estourar dentro do atob: sem esta variavel na Vercel,
+  // o push simplesmente nao existe, e silenciar isso esconderia o pilar do app.
+  if (!chavePublica) throw new Error('VITE_VAPID_PUBLIC_KEY não está configurada')
+
   const permissao = await Notification.requestPermission()
   if (permissao !== 'granted') return 'negado'
 
-  const registro = (await registrarServiceWorker()) ?? (await navigator.serviceWorker.ready)
+  await registrarServiceWorker()
   const pronto = await navigator.serviceWorker.ready
 
   const existente = await pronto.pushManager.getSubscription()
@@ -50,10 +55,8 @@ export async function assinarPush(): Promise<ResultadoPush> {
     existente ??
     (await pronto.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: chaveParaBytes(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+      applicationServerKey: chaveParaBytes(chavePublica),
     }))
-
-  void registro
 
   const bruta = assinatura.toJSON()
   const { data: sessao } = await supabase.auth.getUser()

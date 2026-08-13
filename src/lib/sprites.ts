@@ -98,8 +98,8 @@ export const ITENS: Record<string, Sprite> = {
     { a: '#5b1f1f', A: '#a83232' },
   ),
   'item-08': item(
-    ['....AAAAAAAA....', '................'],
-    { A: '#f5d76e' },
+    ['..aAAAAAAAAAAa..', '................'],
+    { a: '#c9a227', A: '#f5d76e' },
   ),
   'item-09': item(
     ['..aa........aa..', '..aAa......aAa..', '...aAa....aAa...', '................'],

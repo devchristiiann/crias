@@ -46,7 +46,8 @@ export function Folha({ aberta, aoFechar, titulo, children }: Props) {
             type="button"
             onClick={aoFechar}
             aria-label="Fechar"
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md
+                       text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="size-5" />
           </button>

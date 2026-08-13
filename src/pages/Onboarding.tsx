@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BellRing, Check, Share } from 'lucide-react'
+import { BellRing, Check, Loader2, Share } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
-import { usePerfil } from '@/hooks/usePerfil'
+import { usePerfil, type Perfil } from '@/hooks/usePerfil'
 import { assinarPush, permissaoAtual, precisaInstalarAntes, type ResultadoPush } from '@/lib/push'
 import { BASES } from '@/lib/sprites'
 import { supabase } from '@/lib/supabase'
@@ -39,22 +39,46 @@ export function Onboarding() {
 
 function PassoPersonagem({ aoAvancar }: { aoAvancar: () => void }) {
   const { data: perfil } = usePerfil()
+
+  if (!perfil) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // O formulario so nasce depois do perfil existir. Iniciar o estado com o
+  // perfil ainda em voo deixava o campo do nome vazio, e o usuario digitava
+  // o proprio nome duas vezes, uma no cadastro e outra aqui.
+  return <FormularioPersonagem key={perfil.id} perfil={perfil} aoAvancar={aoAvancar} />
+}
+
+function FormularioPersonagem({
+  perfil,
+  aoAvancar,
+}: {
+  perfil: Perfil
+  aoAvancar: () => void
+}) {
   const cliente = useQueryClient()
-  const [nome, setNome] = useState(perfil?.nome ?? '')
-  const [base, setBase] = useState(perfil?.avatar_base ?? 'base-01')
+  const [nome, setNome] = useState(perfil.nome)
+  const [base, setBase] = useState(perfil.avatar_base)
+  const [erro, setErro] = useState<string | null>(null)
 
   const salvar = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from('profiles')
         .update({ nome: nome.trim(), avatar_base: base })
-        .eq('id', perfil!.id)
+        .eq('id', perfil.id)
       if (error) throw error
     },
     onSuccess: () => {
       cliente.invalidateQueries({ queryKey: ['perfil'] })
       aoAvancar()
     },
+    onError: () => setErro('Não deu para salvar agora. Tente de novo.'),
   })
 
   return (
@@ -91,6 +115,8 @@ function PassoPersonagem({ aoAvancar }: { aoAvancar: () => void }) {
         maxLength={40}
         onChange={(e) => setNome(e.target.value)}
       />
+
+      {erro && <p className="text-sm text-destructive">{erro}</p>}
 
       <Botao
         tamanho="lg"
@@ -200,8 +226,11 @@ function PassoGrupo({ aoConcluir }: { aoConcluir: () => void }) {
   const [codigo, setCodigo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
-  function finalizar() {
-    cliente.invalidateQueries()
+  // A RotaProtegida decide o redirect lendo `tem-habito` do cache, e esse cache
+  // foi preenchido com `false` antes do onboarding criar o habito. Navegar sem
+  // esperar o refetch devolve o usuario para o passo 1 do proprio onboarding.
+  async function finalizar() {
+    await cliente.invalidateQueries()
     aoConcluir()
   }
 

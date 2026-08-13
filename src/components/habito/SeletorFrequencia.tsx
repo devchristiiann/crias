@@ -17,16 +17,22 @@ const TIPOS: { tipo: Tipo; rotulo: string }[] = [
 ]
 
 const DOW = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+// Tres letras se repetem entre os dias, entao a inicial sozinha nao identifica
+// nada para leitor de tela. O nome por extenso vai no aria-label.
+const DOW_EXTENSO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
 const UTEIS = [1, 2, 3, 4, 5]
 const NOMES_UTEIS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+const UTEIS_EXTENSO = ['segunda', 'terça', 'quarta', 'quinta', 'sexta']
 
 function Chip({
   ativo,
   children,
+  rotulo,
   onClick,
 }: {
   ativo: boolean
   children: React.ReactNode
+  rotulo?: string
   onClick: () => void
 }) {
   return (
@@ -34,8 +40,12 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={ativo}
+      aria-label={rotulo}
+      // min-h-11 e min-w-11: alvo de toque de 44px. Este e o formulario mais
+      // tocado do app e ficava em 34px.
       className={cn(
-        'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-4',
+        'text-sm font-medium transition-colors',
         ativo
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-card text-muted-foreground hover:bg-accent',
@@ -101,6 +111,7 @@ export function SeletorFrequencia({
             <Chip
               key={dia}
               ativo={valor.dias.includes(dia)}
+              rotulo={DOW_EXTENSO[dia]}
               onClick={() => {
                 const dias = alternarDia(valor.dias, dia)
                 if (dias.length === 0) return
@@ -120,6 +131,7 @@ export function SeletorFrequencia({
             <Chip
               key={dia}
               ativo={valor.dias.includes(dia)}
+              rotulo={UTEIS_EXTENSO[dia - 1]}
               onClick={() => {
                 const dias = alternarDia(valor.dias, dia)
                 if (dias.length === 0) return

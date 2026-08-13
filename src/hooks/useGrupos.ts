@@ -115,14 +115,17 @@ export function useGrupo(grupoId: string | undefined) {
         }
       }
 
-      const { data: streaks } = await supabase
-        .from('streaks')
-        .select('user_id, atual')
-        .in('habit_id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000'])
-
       const streakPorUsuario = new Map<string, number>()
-      for (const s of streaks ?? []) {
-        streakPorUsuario.set(s.user_id, (streakPorUsuario.get(s.user_id) ?? 0) + s.atual)
+      if (ids.length > 0) {
+        const { data: streaks, error: erroStreaks } = await supabase
+          .from('streaks')
+          .select('user_id, atual')
+          .in('habit_id', ids)
+        // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
+        if (erroStreaks) throw erroStreaks
+        for (const s of streaks ?? []) {
+          streakPorUsuario.set(s.user_id, (streakPorUsuario.get(s.user_id) ?? 0) + s.atual)
+        }
       }
 
       // O PostgREST devolve o relacionamento como objeto quando e para um so,

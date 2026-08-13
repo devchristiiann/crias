@@ -5,6 +5,8 @@ import { useSessao } from './useSessao'
 
 export interface ResultadoCheckIn {
   ouro_ganho?: number
+  /** Parcela vinda do baú da trilha. O servidor manda, a tela nunca chuta. */
+  ouro_bau?: number
   streak?: number
   completou?: boolean
   vezes_feitas?: number

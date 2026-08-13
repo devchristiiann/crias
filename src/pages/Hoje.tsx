@@ -5,12 +5,13 @@ import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { CardOcorrencia } from '@/components/hoje/CardOcorrencia'
 import { FolhaDesafio } from '@/components/hoje/FolhaDesafio'
 import { Botao } from '@/components/ui/Botao'
+import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { useOcorrenciasHoje } from '@/hooks/useOcorrenciasHoje'
 import { usePerfil } from '@/hooks/usePerfil'
 
 export function Hoje() {
-  const { data: ocorrencias, isPending, isError } = useOcorrenciasHoje()
+  const { data: ocorrencias, isPending, isError, refetch } = useOcorrenciasHoje()
   const { data: perfil } = usePerfil()
   const [parametros, setParametros] = useSearchParams()
   const [selecionada, setSelecionada] = useState<string | null>(null)
@@ -73,9 +74,7 @@ export function Hoje() {
       )}
 
       {isError && (
-        <p className="rounded-lg border border-destructive/40 bg-card p-4 text-sm text-destructive">
-          Não deu para carregar seus hábitos. Verifique a conexão e puxe a tela para recarregar.
-        </p>
+        <EstadoErro mensagem="Não deu para carregar seus hábitos." aoTentarDeNovo={refetch} />
       )}
 
       {!isPending && !isError && (

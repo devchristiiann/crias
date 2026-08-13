@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
+import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { useGrupos } from '@/hooks/useGrupos'
 import { supabase } from '@/lib/supabase'
 
 export function Grupos() {
-  const { data: grupos, isPending } = useGrupos()
+  const { data: grupos, isPending, isError, refetch } = useGrupos()
   const [acao, setAcao] = useState<'criar' | 'entrar' | null>(null)
 
   return (
@@ -25,7 +26,11 @@ export function Grupos() {
         </div>
       )}
 
-      {!isPending && (grupos ?? []).length === 0 && (
+      {isError && (
+        <EstadoErro mensagem="Não deu para carregar seus grupos." aoTentarDeNovo={refetch} />
+      )}
+
+      {!isPending && !isError && (grupos ?? []).length === 0 && (
         <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           Você ainda não participa de nenhum grupo. Crie um e mande o código para quem você quer
           junto.
@@ -132,7 +137,8 @@ function FolhaEntrar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => vo
     onSuccess: () => {
       setCodigo('')
       setErro(null)
-      cliente.invalidateQueries()
+      cliente.invalidateQueries({ queryKey: ['grupo'] })
+      cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       aoFechar()
     },
     onError: (e: Error) => setErro(e.message),

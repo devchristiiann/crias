@@ -8,6 +8,41 @@
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (evento) => evento.waitUntil(self.clients.claim()))
 
+/* O navegador troca o endereco da assinatura de tempos em tempos, e quando isso
+ * acontece o push morre calado: a linha antiga fica no banco e nenhuma
+ * notificacao chega mais. Reassinar aqui e avisar o app e o que evita isso. */
+self.addEventListener('pushsubscriptionchange', (evento) => {
+  evento.waitUntil(reassinar(evento))
+})
+
+async function reassinar(evento) {
+  const antiga = evento.oldSubscription
+  const chave = evento.oldSubscription?.options?.applicationServerKey
+
+  if (!chave) return avisarApp({ tipo: 'push-precisa-reassinar' })
+
+  try {
+    const nova = await self.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: chave,
+    })
+    await avisarApp({
+      tipo: 'push-reassinado',
+      antiga: antiga ? antiga.endpoint : null,
+      nova: nova.toJSON(),
+    })
+  } catch {
+    // Sem sessao no Service Worker nao da para gravar no banco daqui.
+    // O app grava assim que o usuario abrir.
+    await avisarApp({ tipo: 'push-precisa-reassinar' })
+  }
+}
+
+async function avisarApp(mensagem) {
+  const janelas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  for (const janela of janelas) janela.postMessage(mensagem)
+}
+
 self.addEventListener('push', (evento) => {
   if (!evento.data) return
 
@@ -60,7 +95,12 @@ async function resolverAcao(dados, acao) {
     })
     const corpo = await resposta.json()
 
-    if (acao === 'adiar') return
+    if (acao === 'adiar') {
+      // Adiamento que falhou nao pode sumir em silencio: a notificacao ja foi
+      // fechada, entao o usuario ficaria sem lembrete e sem aviso nenhum.
+      if (corpo.error) return abrirNoDesafio(dados.url || '/hoje')
+      return
+    }
 
     if (corpo.error) {
       // Falhou de verdade: leva o usuario para a tela em vez de mentir que deu certo.

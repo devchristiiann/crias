@@ -75,7 +75,7 @@ export function FolhaDesafio({
 
         {resultado?.bau && (
           <p className="rounded-lg bg-warning/15 px-3 py-2 text-sm font-medium text-warning-foreground">
-            Baú aberto no nó {resultado.no}. Mais 50 de ouro.
+            Baú aberto no nó {resultado.no}. Mais {resultado.ouro_bau} de ouro.
           </p>
         )}
 

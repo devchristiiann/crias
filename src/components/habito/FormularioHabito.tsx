@@ -5,10 +5,20 @@ import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import type { RegraFrequencia } from '@/lib/frequencia'
 import { regraFrequenciaSchema } from '@/lib/frequencia'
+import { iconeDoHabito } from '@/lib/icones'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
-const ICONES = ['target', 'dumbbell', 'book-open', 'droplet', 'moon', 'brain', 'heart', 'wallet'] as const
+const ICONES = [
+  { id: 'target', rotulo: 'Meta' },
+  { id: 'dumbbell', rotulo: 'Exercício' },
+  { id: 'book-open', rotulo: 'Leitura' },
+  { id: 'droplet', rotulo: 'Água' },
+  { id: 'moon', rotulo: 'Sono' },
+  { id: 'brain', rotulo: 'Estudo' },
+  { id: 'heart', rotulo: 'Saúde' },
+  { id: 'wallet', rotulo: 'Dinheiro' },
+] as const
 
 export function FormularioHabito({
   grupoId,
@@ -47,8 +57,12 @@ export function FormularioHabito({
     onSuccess: () => {
       setTitulo('')
       setErro(null)
+      // Estas tres chaves existem de verdade. `habitos` nao existia em useQuery
+      // nenhum, entao criar desafio no grupo fechava a folha e a lista ficava
+      // velha, e o guarda de rota continuava achando que o usuario nao tem habito.
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
-      cliente.invalidateQueries({ queryKey: ['habitos'] })
+      cliente.invalidateQueries({ queryKey: ['grupo'] })
+      cliente.invalidateQueries({ queryKey: ['tem-habito'] })
       aoCriar?.()
     },
     onError: (e: Error) => setErro(e.message),
@@ -74,22 +88,26 @@ export function FormularioHabito({
       <div className="space-y-1.5">
         <span className="block text-sm font-medium">Ícone</span>
         <div className="flex flex-wrap gap-2">
-          {ICONES.map((nome) => (
-            <button
-              key={nome}
-              type="button"
-              onClick={() => setIcone(nome)}
-              aria-pressed={icone === nome}
-              className={cn(
-                'size-11 rounded-lg border text-xs capitalize',
-                icone === nome
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border bg-card text-muted-foreground',
-              )}
-            >
-              {nome.slice(0, 3)}
-            </button>
-          ))}
+          {ICONES.map(({ id, rotulo }) => {
+            const Icone = iconeDoHabito(id)
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setIcone(id)}
+                aria-pressed={icone === id}
+                aria-label={rotulo}
+                className={cn(
+                  'flex size-11 items-center justify-center rounded-lg border',
+                  icone === id
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-card text-muted-foreground',
+                )}
+              >
+                <Icone className="size-5" />
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -105,9 +123,13 @@ export function FormularioHabito({
             type="time"
             value={lembrete}
             onChange={(e) => setLembrete(e.target.value)}
+            aria-describedby="ajuda-lembrete"
             className="h-11 w-full rounded-lg border border-input bg-card px-3
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
+          <span id="ajuda-lembrete" className="block text-xs text-muted-foreground">
+            Vazio: sem notificação.
+          </span>
         </label>
         <label className="space-y-1.5">
           <span className="block text-sm font-medium">Ouro por vez</span>
@@ -122,10 +144,6 @@ export function FormularioHabito({
           />
         </label>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        Sem lembrete, o hábito aparece na lista mas não envia notificação.
-      </p>
 
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
