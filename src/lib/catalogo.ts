@@ -32,6 +32,13 @@ export interface Peca {
   baseY?: number
   /** Onde o acessorio encosta. Sem isso, espada e cajado iam parar na testa. */
   encaixe?: 'cabeca' | 'mao' | 'costas'
+  /**
+   * Onde o cenario se apoia. `chao` e plataforma baixa sob os pes, e o
+   * personagem fica em cima dela; `cena` e fundo do tamanho da caixa, atras
+   * do corpo inteiro. Sem essa separacao os pedestais eram esticados ate virar
+   * painel, que e a reclamacao original: ficava atras e nao embaixo.
+   */
+  ancora?: 'chao' | 'cena'
 }
 
 export const CATALOGO: readonly Peca[] = [
@@ -59,14 +66,14 @@ export const CATALOGO: readonly Peca[] = [
   { id: 'atl-3', nome: "Rei da Quadra", slot: 'personagem', familia: "Lendas do esporte", custo: 1200, arquivo: '/sprites/personagens/atl-3-rei-da-quadra.png', largura: 128, altura: 128, cabecaX: 64, cabecaY: 10, cabecaLargura: 47, maoX: 94, maoY: 70, baseY: 123 },
   { id: 'atl-4', nome: "Cabeceador", slot: 'personagem', familia: "Lendas do esporte", custo: 1200, arquivo: '/sprites/personagens/atl-4-cabeceador.png', largura: 128, altura: 128, cabecaX: 63, cabecaY: 10, cabecaLargura: 49, maoX: 94, maoY: 70, baseY: 123 },
   { id: 'atl-5', nome: "Sorriso Craque", slot: 'personagem', familia: "Lendas do esporte", custo: 1200, arquivo: '/sprites/personagens/atl-5-sorriso-craque.png', largura: 128, altura: 128, cabecaX: 65, cabecaY: 10, cabecaLargura: 49, maoX: 105, maoY: 77, baseY: 123 },
-  { id: 'cen-1', nome: "Pedestal de Madeira", slot: 'cenario', familia: "Cenários", custo: 100, arquivo: '/sprites/cenarios/cen-1-pedestal-de-madeira.png', largura: 95, altura: 57 },
-  { id: 'cen-10', nome: "Moldura Lendária", slot: 'cenario', familia: "Cenários", custo: 700, arquivo: '/sprites/cenarios/cen-10-moldura-lendaria.png', largura: 96, altura: 96 },
-  { id: 'cen-2', nome: "Pedestal de Pedra", slot: 'cenario', familia: "Cenários", custo: 150, arquivo: '/sprites/cenarios/cen-2-pedestal-de-pedra.png', largura: 100, altura: 128 },
-  { id: 'cen-3', nome: "Pedestal de Ouro", slot: 'cenario', familia: "Cenários", custo: 400, arquivo: '/sprites/cenarios/cen-3-pedestal-de-ouro.png', largura: 128, altura: 119 },
-  { id: 'cen-4', nome: "Aura de Fogo", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-4-aura-de-fogo.png', largura: 95, altura: 94 },
-  { id: 'cen-5', nome: "Aura de Gelo", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-5-aura-de-gelo.png', largura: 97, altura: 91 },
-  { id: 'cen-6', nome: "Aura Elétrica", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-6-aura-eletrica.png', largura: 95, altura: 97 },
-  { id: 'cen-7', nome: "Chuva de Estrelas", slot: 'cenario', familia: "Cenários", custo: 400, arquivo: '/sprites/cenarios/cen-7-chuva-de-estrelas.png', largura: 94, altura: 78 },
+  { id: 'cen-1', nome: "Pedestal de Madeira", slot: 'cenario', familia: "Cenários", custo: 100, arquivo: '/sprites/cenarios/cen-1-pedestal-de-madeira.png', largura: 95, altura: 34, ancora: 'chao' },
+  { id: 'cen-10', nome: "Moldura Lendária", slot: 'cenario', familia: "Cenários", custo: 700, arquivo: '/sprites/cenarios/cen-10-moldura-lendaria.png', largura: 96, altura: 96, ancora: 'cena' },
+  { id: 'cen-2', nome: "Pedestal de Pedra", slot: 'cenario', familia: "Cenários", custo: 150, arquivo: '/sprites/cenarios/cen-2-pedestal-de-pedra.png', largura: 100, altura: 36, ancora: 'chao' },
+  { id: 'cen-3', nome: "Pedestal de Ouro", slot: 'cenario', familia: "Cenários", custo: 400, arquivo: '/sprites/cenarios/cen-3-pedestal-de-ouro.png', largura: 124, altura: 45, ancora: 'chao' },
+  { id: 'cen-4', nome: "Aura de Fogo", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-4-aura-de-fogo.png', largura: 95, altura: 94, ancora: 'cena' },
+  { id: 'cen-5', nome: "Aura de Gelo", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-5-aura-de-gelo.png', largura: 97, altura: 91, ancora: 'cena' },
+  { id: 'cen-6', nome: "Aura Elétrica", slot: 'cenario', familia: "Cenários", custo: 250, arquivo: '/sprites/cenarios/cen-6-aura-eletrica.png', largura: 95, altura: 97, ancora: 'cena' },
+  { id: 'cen-7', nome: "Chuva de Estrelas", slot: 'cenario', familia: "Cenários", custo: 400, arquivo: '/sprites/cenarios/cen-7-chuva-de-estrelas.png', largura: 94, altura: 78, ancora: 'cena' },
   { id: 'deu-1', nome: "Mini Zeus", slot: 'personagem', familia: "Deuses e mitologia", custo: 500, arquivo: '/sprites/personagens/deu-1-mini-zeus.png', largura: 128, altura: 128, cabecaX: 65, cabecaY: 10, cabecaLargura: 44, maoX: 98, maoY: 75, baseY: 123 },
   { id: 'deu-2', nome: "Mini Thor", slot: 'personagem', familia: "Deuses e mitologia", custo: 500, arquivo: '/sprites/personagens/deu-2-mini-thor.png', largura: 128, altura: 128, cabecaX: 66, cabecaY: 10, cabecaLargura: 40, maoX: 110, maoY: 80, baseY: 123 },
   { id: 'deu-4', nome: "Poseidon", slot: 'personagem', familia: "Deuses e mitologia", custo: 500, arquivo: '/sprites/personagens/deu-4-poseidon.png', largura: 128, altura: 128, cabecaX: 65, cabecaY: 10, cabecaLargura: 37, maoX: 111, maoY: 73, baseY: 123 },

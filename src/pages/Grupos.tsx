@@ -62,6 +62,8 @@ export function Grupos() {
                 <img
                   src={g.fotoUrl}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="size-11 shrink-0 rounded-lg object-cover"
                 />
               ) : (
@@ -218,22 +220,37 @@ function FolhaCriar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => voi
 
 function FolhaEntrar({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void }) {
   const cliente = useQueryClient()
+  const navegar = useNavigate()
+  // A mesma lista que a pagina desenha, sem consulta nova: e ela que diz se o
+  // codigo digitado leva a um grupo que ja e seu.
+  const { data: meusGrupos } = useGrupos()
   const [codigo, setCodigo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
   const entrar = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<string> => {
       const { data, error } = await supabase.rpc('entrar_grupo', { p_codigo: codigo })
       if (error) throw error
       if (data?.error === 'codigo_invalido') throw new Error('Código não encontrado.')
-      if (data?.error) throw new Error('Não deu para entrar agora.')
+      if (data?.error || !data?.id) throw new Error('Não deu para entrar agora.')
+      // `entrar_grupo` insere com `on conflict do nothing`, entao membro antigo
+      // recebia o mesmo ok do membro novo: a folha fechava e nada acontecia.
+      // Dizer isso em voz alta nao abre porta de enumeracao, porque a resposta
+      // so muda para grupo do qual voce ja e membro, que e informacao sua.
+      if ((meusGrupos ?? []).some((g) => g.id === data.id)) {
+        throw new Error('Você já está neste grupo. Ele está na sua lista.')
+      }
+      return data.id as string
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       setCodigo('')
       setErro(null)
       cliente.invalidateQueries({ queryKey: ['grupo'] })
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       aoFechar()
+      // Entrar num grupo termina dentro dele. Antes a folha fechava sobre a
+      // lista e o grupo novo era mais uma linha para procurar.
+      navegar(`/grupos/${id}`)
     },
     onError: (e: Error) => setErro(e.message),
   })

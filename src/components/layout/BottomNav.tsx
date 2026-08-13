@@ -1,6 +1,7 @@
 import { CalendarCheck, Settings, Store, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
+import { Esqueleto } from '@/components/ui/Esqueleto'
 import { usePerfil } from '@/hooks/usePerfil'
 import { cn } from '@/lib/utils'
 
@@ -22,7 +23,7 @@ const ABAS = [
  * deixaria uma faixa vazia embaixo do menu, que foi outro sintoma relatado.
  */
 export function BottomNav() {
-  const { data: perfil } = usePerfil()
+  const { data: perfil, isPending } = usePerfil()
 
   return (
     <nav
@@ -49,15 +50,22 @@ export function BottomNav() {
               )
             }
           >
-            <Avatar
-              base={perfil?.avatar_base}
-              item={perfil?.item_equipado}
-              cenario={perfil?.cenario_equipado}
-              tamanho={40}
-              // O personagem doente aparece doente em todo lugar que ele
-              // aparece. Um boneco são no menu desmentiria a própria trilha.
-              doente={perfil?.doente}
-            />
+            {/* Sem perfil o `Avatar` cai no personagem padrao, e o menu mostrava
+                o boneco de outra pessoa ate o perfil chegar, trocando sozinho na
+                frente do usuario. Circulo vazio nao afirma nada. */}
+            {isPending ? (
+              <Esqueleto className="size-10 rounded-full" />
+            ) : (
+              <Avatar
+                base={perfil?.avatar_base}
+                item={perfil?.item_equipado}
+                cenario={perfil?.cenario_equipado}
+                tamanho={40}
+                // O personagem doente aparece doente em todo lugar que ele
+                // aparece. Um boneco são no menu desmentiria a própria trilha.
+                doente={perfil?.doente}
+              />
+            )}
           </NavLink>
         </li>
 

@@ -2,7 +2,6 @@ import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, MailCheck, MailWarning, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Avatar } from '@/components/Avatar'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { useSessao } from '@/hooks/useSessao'
@@ -177,7 +176,11 @@ export function Entrar() {
   return (
     <main className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center gap-7 px-5 py-10">
       <header className="flex flex-col items-center gap-3 text-center">
-        <Avatar tamanho={96} />
+        {/* A logo e vermelha nos dois temas de proposito: e o unico tom que
+            passa contraste no fundo claro e no escuro, o que evita duas imagens
+            e um seletor de tema so para trocar de arquivo. `alt` vazio porque o
+            nome do app vem escrito logo abaixo. */}
+        <img src="/logo.png" alt="" width={96} height={96} className="size-24" />
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Crias</h1>
           <p className="text-sm text-muted-foreground">Hábitos em grupo, com ofensiva e ouro.</p>

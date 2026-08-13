@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, MoreVertical, Share, Smartphone } from 'lucide-react'
+import { Loader2, MoreVertical, Share } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
@@ -183,7 +183,16 @@ function PassoInstalar({ aoConcluir }: { aoConcluir: () => void }) {
       </header>
 
       <div className="flex justify-center py-2">
-        <Smartphone className="size-20 text-primary" strokeWidth={1.2} />
+        {/* O icone de verdade, com o mesmo canto do atalho, em vez de um
+            desenho generico de celular: quem esta instalando precisa saber o
+            que procurar na tela de inicio depois. */}
+        <img
+          src="/icone-192.png"
+          alt=""
+          width={80}
+          height={80}
+          className="size-20 rounded-2xl shadow-sm"
+        />
       </div>
 
       <div className="space-y-2 rounded-lg border border-border bg-card p-4">

@@ -130,7 +130,10 @@ export function useCheckIn() {
         caminho = `${usuarioId}/${ocorrenciaId}/${crypto.randomUUID()}.webp`
         const { error } = await supabase.storage
           .from('checkins')
-          .upload(caminho, comprimida, { contentType: 'image/webp' })
+          // O tipo vem do blob: quando o navegador nao codifica WebP a
+          // compressao devolve JPEG, e declarar WebP gravaria um cabecalho que
+          // contradiz o arquivo.
+          .upload(caminho, comprimida, { contentType: comprimida.type })
         // Foto e opcional: falhar o upload nao pode impedir o habito de ser
         // marcado. Mas a tela precisa contar, senao a comprovacao some calada.
         if (error) {

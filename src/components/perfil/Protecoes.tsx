@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { HeartPulse, Shield, Thermometer } from 'lucide-react'
 import { useState } from 'react'
 import { Botao } from '@/components/ui/Botao'
 import { Confirmar } from '@/components/ui/Confirmar'
@@ -23,6 +22,28 @@ const ERROS: Record<string, string> = {
   nao_esta_doente: 'Seu personagem já está curado.',
 }
 
+/**
+ * Arte de `scripts/gerar-sprites-ui.mjs`. Sao icone de tela, nao peca de loja:
+ * nao tem id em `avatar_items`, nao tem preco e nao passam pelo catalogo.
+ *
+ * Entram como sprite e nao como icone de traco porque escudo e cura sao itens
+ * do jogo, e o jogo inteiro e pixel art. Ficam em 20px: em 16 o desenho do
+ * escudo vira mancha, e 24 empurra a altura da linha.
+ */
+const ESCUDO = '/sprites/ui/escudo.png'
+const POCAO = '/sprites/ui/pocao-vida.png'
+const SPRITE = 'size-5 shrink-0'
+/**
+ * O mesmo sprite, sobre a propria casa.
+ *
+ * Dentro do botao primario a pocao e vermelha sobre vermelho e so o contorno
+ * separava as duas. A arte nao muda, ela e a mesma da loja e do jogo inteiro:
+ * quem muda e o fundo atras dela, que vira o quadrado de inventario e devolve
+ * borda em qualquer superficie. `bg-background` porque e o unico tom que
+ * contrasta com o vermelho do botao primario e com o card nos dois temas.
+ */
+const SPRITE_EM_BOTAO = 'size-5 shrink-0 rounded-sm bg-background'
+
 function mensagem(resposta: Resposta): string {
   if (resposta.error === 'ouro_insuficiente') {
     const falta = resposta.falta ?? 0
@@ -40,11 +61,27 @@ function mensagem(resposta: Resposta): string {
  */
 export function Protecoes({ doente, escudos }: { doente: boolean; escudos: number }) {
   const cliente = useQueryClient()
-  const [confirmando, setConfirmando] = useState<'escudo' | 'cura' | null>(null)
+  // O token nasce no toque que abre a folha de confirmacao, junto com a acao,
+  // nao dentro de `mutationFn`. Assim toda retentativa daquele mesmo toque
+  // (retry automatico do React Query, ou um novo clique em Confirmar depois
+  // de um erro de rede) reenvia as mesmas `variables` e o mesmo token, e a
+  // RPC devolve o resultado guardado em vez de cobrar de novo. Fechar a
+  // folha ou tocar de novo em Comprar escudo ou Curar gera um token novo.
+  const [confirmando, setConfirmando] = useState<{ acao: 'escudo' | 'cura'; token: string } | null>(
+    null,
+  )
 
   const agir = useMutation({
-    mutationFn: async (acao: 'escudo' | 'cura'): Promise<Resposta> => {
-      const { data, error } = await supabase.rpc(acao === 'cura' ? 'curar' : 'comprar_escudo')
+    mutationFn: async ({
+      acao,
+      token,
+    }: {
+      acao: 'escudo' | 'cura'
+      token: string
+    }): Promise<Resposta> => {
+      const { data, error } = await supabase.rpc(acao === 'cura' ? 'curar' : 'comprar_escudo', {
+        p_token: token,
+      })
       if (error) throw error
       const resposta = data as Resposta
       if (resposta?.error) throw new Error(mensagem(resposta))
@@ -63,7 +100,7 @@ export function Protecoes({ doente, escudos }: { doente: boolean; escudos: numbe
     <div className="space-y-3 border-t border-border pt-3">
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="flex items-center gap-1.5 font-medium">
-          <Shield className="size-4 text-primary" />
+          <img src={ESCUDO} alt="Escudo" data-pixel className={SPRITE} />
           Escudos
         </span>
         <span className="text-muted-foreground">{escudos}</span>
@@ -71,7 +108,7 @@ export function Protecoes({ doente, escudos }: { doente: boolean; escudos: numbe
 
       {doente && (
         <p className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <Thermometer className="size-4 shrink-0" />
+          <img src={POCAO} alt="Poção de vida" data-pixel className={SPRITE} />
           Seu personagem está doente.
         </p>
       )}
@@ -82,10 +119,10 @@ export function Protecoes({ doente, escudos }: { doente: boolean; escudos: numbe
           className="w-full"
           onClick={() => {
             agir.reset()
-            setConfirmando('escudo')
+            setConfirmando({ acao: 'escudo', token: crypto.randomUUID() })
           }}
         >
-          <Shield className="size-4" />
+          <img src={ESCUDO} alt="Escudo" data-pixel className={SPRITE_EM_BOTAO} />
           Comprar escudo por {PRECO_ESCUDO}
         </Botao>
 
@@ -94,10 +131,10 @@ export function Protecoes({ doente, escudos }: { doente: boolean; escudos: numbe
             className="w-full"
             onClick={() => {
               agir.reset()
-              setConfirmando('cura')
+              setConfirmando({ acao: 'cura', token: crypto.randomUUID() })
             }}
           >
-            <HeartPulse className="size-4" />
+            <img src={POCAO} alt="Poção de vida" data-pixel className={SPRITE_EM_BOTAO} />
             Curar por {PRECO_CURA}
           </Botao>
         )}
@@ -106,13 +143,13 @@ export function Protecoes({ doente, escudos }: { doente: boolean; escudos: numbe
       <Confirmar
         aberta={confirmando !== null}
         aoFechar={() => setConfirmando(null)}
-        titulo={confirmando === 'cura' ? 'Curar o personagem?' : 'Comprar um escudo?'}
+        titulo={confirmando?.acao === 'cura' ? 'Curar o personagem?' : 'Comprar um escudo?'}
         detalhe={
-          confirmando === 'cura'
+          confirmando?.acao === 'cura'
             ? `Custa ${PRECO_CURA} de ouro.`
             : `Custa ${PRECO_ESCUDO} de ouro.`
         }
-        rotuloConfirmar={confirmando === 'cura' ? 'Curar' : 'Comprar'}
+        rotuloConfirmar={confirmando?.acao === 'cura' ? 'Curar' : 'Comprar'}
         carregando={agir.isPending}
         erro={agir.error?.message ?? null}
         aoConfirmar={() => confirmando && agir.mutate(confirmando)}

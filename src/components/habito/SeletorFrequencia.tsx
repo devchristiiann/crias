@@ -29,11 +29,13 @@ function Chip({
   children,
   rotulo,
   onClick,
+  className,
 }: {
   ativo: boolean
   children: React.ReactNode
   rotulo?: string
   onClick: () => void
+  className?: string
 }) {
   return (
     <button
@@ -49,6 +51,7 @@ function Chip({
         ativo
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-card text-muted-foreground hover:bg-accent',
+        className,
       )}
     >
       {children}
@@ -106,10 +109,16 @@ export function SeletorFrequencia({
       </div>
 
       {valor.tipo === 'semanal_dias' && (
-        <div className="flex gap-2">
+        // Sete colunas que dividem a largura disponivel. Era `flex gap-2` com
+        // chip de largura fixa: em 360px a linha somava mais que a tela e o
+        // sabado ficava fora, que e scroll horizontal, bug bloqueante aqui.
+        // Semana e uma linha so, entao quebrar em duas nao serve; quem cede e a
+        // largura do chip, e `min-h-11` mantem o alvo de toque.
+        <div className="grid grid-cols-7 gap-1.5">
           {DOW.map((letra, dia) => (
             <Chip
               key={dia}
+              className="w-full min-w-0 px-0"
               ativo={valor.dias.includes(dia)}
               rotulo={DOW_EXTENSO[dia]}
               onClick={() => {

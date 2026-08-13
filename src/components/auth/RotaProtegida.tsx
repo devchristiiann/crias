@@ -1,17 +1,9 @@
-import { Loader2 } from 'lucide-react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Botao } from '@/components/ui/Botao'
+import { Carregando } from '@/components/ui/Carregando'
 import { usePerfil } from '@/hooks/usePerfil'
 import { useSessao } from '@/hooks/useSessao'
 import { supabase } from '@/lib/supabase'
-
-function Carregando() {
-  return (
-    <div className="flex min-h-full items-center justify-center">
-      <Loader2 className="size-6 animate-spin text-muted-foreground" />
-    </div>
-  )
-}
 
 export function RotaProtegida() {
   const { sessao, carregando } = useSessao()
@@ -21,7 +13,7 @@ export function RotaProtegida() {
   // ter habito. Antes o guarda contava habitos, e desde que `excluir_habito`
   // existe apagar a ultima rotina jogava um usuario antigo de volta no
   // onboarding, com direito a refazer a escolha do personagem.
-  const { data: perfil, isPending, isError, error, refetch } = usePerfil()
+  const { data: perfil, isError, error, refetch } = usePerfil()
 
   if (carregando) return <Carregando />
   if (!sessao) return <Navigate to="/entrar" replace />
@@ -48,14 +40,24 @@ export function RotaProtegida() {
     )
   }
 
-  if (isPending || !perfil) return <Carregando />
-
+  // O perfil nao segura mais a tela. Ele decide UMA coisa aqui, o desvio para o
+  // onboarding, e esperar por ele punha a consulta de perfil na frente de todas
+  // as outras: nada comecava a carregar antes dela responder, e o app inteiro
+  // ficava num spinner. A checagem de sessao acima continua igual e bloqueante,
+  // porque essa sim decide se a pessoa entra.
+  //
+  // O preco e conhecido: conta que ainda nao escolheu personagem ve a tela de
+  // destino por um instante antes de ser levada para o onboarding. Acontece uma
+  // vez na vida da conta, e o outro lado era todo mundo esperando sempre.
+  //
   // So empurra PARA o onboarding. Nao empurra de volta: o personagem e definido
   // logo no primeiro passo, e um redirect aqui expulsaria o usuario do meio do
   // fluxo. Criar o primeiro habito e passo de dentro do onboarding, nao trava
   // de rota: apagar rotina depois nao pode reabrir o cadastro.
   const noOnboarding = local.pathname === '/onboarding'
-  if (!perfil.personagem_definido && !noOnboarding) return <Navigate to="/onboarding" replace />
+  if (perfil && !perfil.personagem_definido && !noOnboarding) {
+    return <Navigate to="/onboarding" replace />
+  }
 
   return <Outlet />
 }

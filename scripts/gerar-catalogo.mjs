@@ -20,6 +20,11 @@ const PRECO={
 }
 const SLOT=(id)=>id.startsWith('cen-')?'cenario':id.startsWith('fun-')?'fundo':id.startsWith('ace-')?'acessorio':'personagem'
 
+// Cenario de pedestal e cenario de fundo pedem desenho diferente, e o unico
+// jeito de saber qual e qual e a arte. Aura, chuva de estrelas e moldura sao
+// quadrados e envolvem o corpo; estes tres sao plataforma e vao SOB os pes.
+const CHAO=new Set(['cen-1','cen-2','cen-3'])
+
 const linhas=m.map(r=>{
   const fam=FAMILIA[r.id.split('-')[0]]
   const preco=PRECO[r.id]
@@ -27,7 +32,9 @@ const linhas=m.map(r=>{
   const slot=SLOT(r.id)
   const extra=r.cabecaX!==undefined
     ? `, cabecaX: ${r.cabecaX}, cabecaY: ${r.cabecaY}, cabecaLargura: ${r.cabecaLargura}, maoX: ${r.maoX}, maoY: ${r.maoY}, baseY: ${r.baseY}`
-    : (r.encaixe ? `, encaixe: '${r.encaixe}'` : '')
+    : slot==='cenario'
+      ? `, ancora: '${CHAO.has(r.id)?'chao':'cena'}'`
+      : (r.encaixe ? `, encaixe: '${r.encaixe}'` : '')
   return `  { id: '${r.id}', nome: ${JSON.stringify(r.nome)}, slot: '${slot}', familia: ${JSON.stringify(fam)}, custo: ${preco}, arquivo: '${r.arquivo}', largura: ${r.saida.split('x')[0]}, altura: ${r.saida.split('x')[1]}${extra} },`
 }).sort()
 
@@ -65,6 +72,13 @@ export interface Peca {
   baseY?: number
   /** Onde o acessorio encosta. Sem isso, espada e cajado iam parar na testa. */
   encaixe?: 'cabeca' | 'mao' | 'costas'
+  /**
+   * Onde o cenario se apoia. \`chao\` e plataforma baixa sob os pes, e o
+   * personagem fica em cima dela; \`cena\` e fundo do tamanho da caixa, atras
+   * do corpo inteiro. Sem essa separacao os pedestais eram esticados ate virar
+   * painel, que e a reclamacao original: ficava atras e nao embaixo.
+   */
+  ancora?: 'chao' | 'cena'
 }
 
 export const CATALOGO: readonly Peca[] = [

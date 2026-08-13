@@ -160,7 +160,16 @@ export function Configuracoes() {
             e-mail nao estiver ligada, este e o unico caminho que o proprio
             usuario tem para mudar a senha sem depender de ninguem. */}
         {trocandoSenha ? (
-          <div className="space-y-3 py-1">
+          // Campo de senha vive dentro de <form> de proposito: fora dele o
+          // navegador avisa `Password field is not contained in a form` e o
+          // gerenciador de senhas nao oferece atualizar a senha guardada.
+          <form
+            className="space-y-3 py-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!trocarSenha.isPending) trocarSenha.mutate()
+            }}
+          >
             <Campo
               rotulo="Senha atual"
               type="password"
@@ -183,9 +192,9 @@ export function Configuracoes() {
             />
             <div className="grid grid-cols-2 gap-2">
               <Botao
+                type="submit"
                 disabled={senha.length < 8 || senhaAtual.length < 1}
                 carregando={trocarSenha.isPending}
-                onClick={() => trocarSenha.mutate()}
               >
                 Salvar
               </Botao>
@@ -200,7 +209,7 @@ export function Configuracoes() {
                 Cancelar
               </Botao>
             </div>
-          </div>
+          </form>
         ) : (
           <button
             type="button"

@@ -31,6 +31,23 @@ const MAO_RECUO = 0.35 // quanto do item fica para dentro da mao
 const COSTAS_LARGURA = 0.95 // largura do item de costas, em fracao do corpo
 const COSTAS_TOPO = 0.22 // onde comeca, descendo do topo da cabeca
 
+/* Cenario de ancora `chao`. Sao fracoes da caixa do avatar.
+ *
+ * Pedestal desenhado como o personagem, esticado pela caixa toda, vira painel
+ * atras do corpo: era esse o "so fica atras e nem embaixo". Plataforma e outra
+ * geometria, e por isso tem numero proprio. A proporcao da caixa
+ * (CHAO_LARGURA sobre CHAO_ALTURA) e a mesma que scripts/recortar-pedestais.mjs
+ * da a arte, entao o sprite preenche a caixa sem sobra nas laterais.
+ *
+ * CORPO_LADO encolhe a caixa do personagem para ela terminar dentro da face de
+ * cima da plataforma. O personagem fica um quinto menor quando tem pedestal, e
+ * e justamente isso que faz a cena ler como alguem de pe em cima de alguma
+ * coisa em vez de alguem na frente de um movel. */
+const CHAO_LARGURA = 0.84
+const CHAO_ALTURA = 0.3
+const CHAO_PISO = 0.12 // onde o pe encosta, subindo do fundo da caixa
+const CORPO_LADO = 0.8
+
 const CAMADA = 'pointer-events-none absolute inset-0 h-full w-full select-none object-contain'
 const pct = (v: number) => `${(v / LADO_SPRITE) * 100}%`
 
@@ -94,10 +111,25 @@ interface Props {
   tamanho?: number
   /** Personagem doente: sprite sem cor e selo de febre no canto. */
   doente?: boolean
+  /**
+   * Sprite que pode chegar depois. Ligar em lista longa: o ranking desenha
+   * dezenas de avatares de uma vez, tres `<img>` cada, e todos disputavam a
+   * rede com as fotos do feed. Fica desligado por padrao porque o avatar de
+   * destaque (podio, menu, trilha, entrada) tem que aparecer na hora.
+   */
+  adiavel?: boolean
   className?: string
 }
 
-export function Avatar({ base, item, cenario, tamanho = 64, doente = false, className }: Props) {
+export function Avatar({
+  base,
+  item,
+  cenario,
+  tamanho = 64,
+  doente = false,
+  adiavel = false,
+  className,
+}: Props) {
   const legado = base?.startsWith('base-') ? base : null
   const itemLegado = item?.startsWith('item-') ? item : null
   // Id de personagem que nao existe mais cai no padrao: melhor o boneco errado
@@ -106,8 +138,26 @@ export function Avatar({ base, item, cenario, tamanho = 64, doente = false, clas
     ? undefined
     : (peca(base, 'personagem') ?? peca(PERSONAGEM_PADRAO, 'personagem'))
   const cena = peca(cenario, 'cenario')
+  // Pedestal e chao sob os pes, aura e moldura sao fundo do tamanho da caixa.
+  // Dois desenhos diferentes, e quem separa e a ancora do catalogo.
+  const chao = cena?.ancora === 'chao' ? cena : undefined
   const acessorio = itemLegado ? undefined : peca(item, 'acessorio')
   const atras = acessorio?.encaixe === 'costas'
+  const carga = adiavel ? 'lazy' : 'eager'
+
+  // A pilha do personagem vive numa caixa propria, quadrada, que termina na
+  // face de cima da plataforma. As ancoras de `pouso()` sao porcentagem dessa
+  // caixa, entao encolher a caixa leva chapeu e item junto e o encaixe
+  // continua certo. Sem pedestal a caixa e a caixa inteira, como sempre foi.
+  const caixaCorpo: React.CSSProperties = chao
+    ? {
+        left: '50%',
+        bottom: `${CHAO_PISO * 100}%`,
+        width: `${CORPO_LADO * 100}%`,
+        height: `${CORPO_LADO * 100}%`,
+        transform: 'translateX(-50%)',
+      }
+    : { inset: 0 }
 
   const camadaAcessorio = acessorio && (
     <img
@@ -116,6 +166,8 @@ export function Avatar({ base, item, cenario, tamanho = 64, doente = false, clas
       aria-hidden="true"
       draggable={false}
       data-pixel
+      loading={carga}
+      decoding="async"
       className="pointer-events-none absolute h-auto select-none"
       style={pouso(acessorio, personagem)}
     />
@@ -128,42 +180,69 @@ export function Avatar({ base, item, cenario, tamanho = 64, doente = false, clas
 
   const camadas = (
     <>
-      {cena && (
+      {chao ? (
         <img
-          src={cena.arquivo}
+          src={chao.arquivo}
           alt=""
           aria-hidden="true"
           draggable={false}
           data-pixel
-          className={cn(CAMADA, 'object-bottom')}
-        />
-      )}
-
-      {atras && camadaAcessorio}
-
-      {legado ? (
-        <img
-          src={fonteLegado(legado, itemLegado)}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          data-pixel
-          className={cn(CAMADA, 'object-bottom')}
+          loading={carga}
+          decoding="async"
+          className="pointer-events-none absolute bottom-0 select-none object-contain object-bottom"
+          style={{
+            left: '50%',
+            width: `${CHAO_LARGURA * 100}%`,
+            height: `${CHAO_ALTURA * 100}%`,
+            transform: 'translateX(-50%)',
+          }}
         />
       ) : (
-        personagem && (
+        cena && (
           <img
-            src={personagem.arquivo}
+            src={cena.arquivo}
             alt=""
             aria-hidden="true"
             draggable={false}
             data-pixel
+            loading={carga}
+            decoding="async"
             className={cn(CAMADA, 'object-bottom')}
           />
         )
       )}
 
-      {!atras && camadaAcessorio}
+      <span className="absolute" style={caixaCorpo}>
+        {atras && camadaAcessorio}
+
+        {legado ? (
+          <img
+            src={fonteLegado(legado, itemLegado)}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            data-pixel
+            loading={carga}
+            decoding="async"
+            className={cn(CAMADA, 'object-bottom')}
+          />
+        ) : (
+          personagem && (
+            <img
+              src={personagem.arquivo}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              data-pixel
+              loading={carga}
+              decoding="async"
+              className={cn(CAMADA, 'object-bottom')}
+            />
+          )
+        )}
+
+        {!atras && camadaAcessorio}
+      </span>
     </>
   )
 

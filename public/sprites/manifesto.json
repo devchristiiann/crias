@@ -631,9 +631,9 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 18,
-    "saida": "95x57",
+    "saida": "95x34",
     "arquivo": "/sprites/cenarios/cen-1-pedestal-de-madeira.png",
-    "kb": 0.8
+    "kb": 0.6
   },
   {
     "id": "cen-10",
@@ -675,9 +675,9 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "128x119",
+    "saida": "124x45",
     "arquivo": "/sprites/cenarios/cen-3-pedestal-de-ouro.png",
-    "kb": 2.8
+    "kb": 0.9
   },
   {
     "id": "cen-6",
@@ -697,9 +697,9 @@
     "ilhas": 1,
     "grupos": 1,
     "bloco": 4,
-    "saida": "100x128",
+    "saida": "100x36",
     "arquivo": "/sprites/cenarios/cen-2-pedestal-de-pedra.png",
-    "kb": 1.7
+    "kb": 0.7
   },
   {
     "id": "fun-1",

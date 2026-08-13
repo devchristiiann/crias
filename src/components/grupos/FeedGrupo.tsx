@@ -49,6 +49,7 @@ function CartaoFeed({
             cenario={membro.cenarioEquipado}
             tamanho={36}
             doente={membro.doente}
+            adiavel
           />
         ) : (
           <span className="size-9 shrink-0 rounded-full bg-muted" />

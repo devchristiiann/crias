@@ -11,6 +11,11 @@ type Etapa = 'comprimindo' | 'enviando' | null
 /**
  * Capa do grupo. Quem nao e dono so ve a imagem, e grupo sem foto nao deixa
  * moldura vazia na tela: o bloco inteiro some.
+ *
+ * Dois usos, e a diferenca e o `fotoUrl`. Na pagina do grupo ele so entra com a
+ * capa em maos, que a lista ja trouxe, e o botao de trocar fica por cima da
+ * imagem. Na folha de administrar ele entra com `null` e vira so o botao de
+ * adicionar: la o bloco pode nascer quando quiser sem empurrar o cabecalho.
  */
 export function FotoCapaGrupo({
   grupoId,
@@ -38,7 +43,10 @@ export function FotoCapaGrupo({
       const caminho = `${grupoId}/capa.webp`
       const { error: erroUpload } = await supabase.storage
         .from('grupos')
-        .upload(caminho, comprimida, { contentType: 'image/webp', upsert: true })
+        // O tipo vem do blob, e nao fixo: quando o navegador nao codifica WebP
+        // a compressao devolve JPEG, e declarar WebP gravaria um cabecalho que
+        // contradiz o arquivo.
+        .upload(caminho, comprimida, { contentType: comprimida.type, upsert: true })
       if (erroUpload) throw erroUpload
 
       const { data, error } = await supabase.rpc('definir_foto_grupo', {
@@ -63,9 +71,14 @@ export function FotoCapaGrupo({
     <div className="space-y-2">
       {fotoUrl && (
         <div className="relative overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+          {/* A capa e o maior elemento da tela e o que decide o LCP. Sem
+              prioridade ela entra na fila junto com as fotos do feed, que estao
+              abaixo da dobra e sao muito mais numerosas. */}
           <img
             src={fotoUrl}
             alt={`Capa do grupo ${nome}`}
+            fetchPriority="high"
+            decoding="async"
             className="aspect-video w-full object-cover"
           />
           {ehDono && (

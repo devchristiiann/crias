@@ -1,5 +1,5 @@
 import { Camera, Coins, Flame, Undo2, Users } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
@@ -191,6 +191,20 @@ export function FolhaDesafio({
   const [devolvido, setDevolvido] = useState<number | null>(null)
   const [desmarcando, setDesmarcando] = useState(false)
   const entradaArquivo = useRef<HTMLInputElement>(null)
+  // Endereco local da foto escolhida, so para a miniatura. `createObjectURL`
+  // nao le nem copia o arquivo: aponta para ele. Fica no efeito, e nao no
+  // render, porque quem cria tem que ser o mesmo que devolve: sem o `revoke` de
+  // volta cada troca de foto deixaria a anterior presa na memoria da aba.
+  const [previa, setPrevia] = useState<string | null>(null)
+  useEffect(() => {
+    if (!foto) {
+      setPrevia(null)
+      return
+    }
+    const endereco = URL.createObjectURL(foto)
+    setPrevia(endereco)
+    return () => URL.revokeObjectURL(endereco)
+  }, [foto])
   const checkIn = useCheckIn()
   const desfazer = useDesfazerCheckIn()
   const { usuarioId } = useSessao()
@@ -476,6 +490,28 @@ export function FolhaDesafio({
               className="hidden"
               onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
             />
+            {/* A prova aparece antes de sair. "Foto anexada" escrito no botao
+                nao deixa conferir se o toque pegou a imagem certa, e concluir
+                nao tem desfazer barato. A altura e a mesma com foto e sem,
+                senao a miniatura empurraria os botoes para baixo bem na hora
+                em que a pessoa vai tocar neles. `object-contain` porque isto e
+                prova: recortar pode esconder justamente o que ela precisa
+                conferir. */}
+            <div
+              className="flex h-32 items-center justify-center overflow-hidden rounded-lg
+                         border border-dashed border-border bg-muted/40"
+            >
+              {previa ? (
+                <img
+                  src={previa}
+                  alt={ehTela ? 'Print anexado' : 'Foto anexada'}
+                  className="size-full object-contain"
+                />
+              ) : (
+                <Camera className="size-6 text-muted-foreground" aria-hidden="true" />
+              )}
+            </div>
+
             <Botao
               variante="secundario"
               className="w-full"

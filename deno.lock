@@ -1,0 +1,42 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@supabase/supabase-js@2": "2.112.3"
+  },
+  "jsr": {
+    "@supabase/supabase-js@2.112.3": {
+      "integrity": "114dd7d327daa11fb5b876bc447c47a8c1b9bf3f0d0ed05b308a60639b134b7b"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@playwright/test@^1.62.1",
+        "npm:@supabase/supabase-js@^2.108.2",
+        "npm:@tanstack/react-query@^5.62.7",
+        "npm:@testing-library/jest-dom@^6.6.3",
+        "npm:@testing-library/react@^16.1.0",
+        "npm:@types/react-dom@^19.0.2",
+        "npm:@types/react@^19.0.2",
+        "npm:@vitejs/plugin-react@^4.3.4",
+        "npm:autoprefixer@^10.4.20",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:jsdom@^25.0.1",
+        "npm:lucide-react@0.468",
+        "npm:postcss@^8.4.49",
+        "npm:react-dom@19",
+        "npm:react-router-dom@^7.1.1",
+        "npm:react@19",
+        "npm:sharp@~0.35.3",
+        "npm:tailwind-merge@^2.6.0",
+        "npm:tailwindcss-animate@^1.0.7",
+        "npm:tailwindcss@^3.4.17",
+        "npm:typescript@^5.7.2",
+        "npm:vite@^6.0.5",
+        "npm:vitest@^2.1.8",
+        "npm:zod@^3.24.1"
+      ]
+    }
+  }
+}

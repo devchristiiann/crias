@@ -157,7 +157,9 @@ test.describe.serial('percurso mobile em 360px', () => {
     // Aba Hoje.
     await page.waitForURL('**/hoje', { timeout: 30_000 })
     await expect(page.getByRole('heading', { name: 'Hoje' })).toBeVisible()
-    await expect(page.getByText('Beber água')).toBeVisible()
+    // Pelo cartao, e nao pelo texto solto: a folha de novo habito fica montada e
+    // fechada com a sugestao de mesmo nome dentro, e o texto casa nas duas.
+    await expect(page.getByRole('button', { name: 'Beber água Todo dia' })).toBeVisible()
     await verificarTela(page, '/hoje')
 
     // Folha de novo habito: precisa caber na viewport.

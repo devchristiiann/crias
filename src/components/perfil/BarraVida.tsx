@@ -1,7 +1,9 @@
 import { Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const VIDA_MAXIMA = 50
+/** Teto da vida. Exportado porque a trilha decide texto por ele: dizer "ainda
+ *  está inteira" com a barra pela metade e a tela contradizendo a si mesma. */
+export const VIDA_MAXIMA = 50
 
 /**
  * A explicação fica visível sempre, e não só com a vida baixa.

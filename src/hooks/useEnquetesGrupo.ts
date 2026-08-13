@@ -8,6 +8,9 @@ import { supabase } from '@/lib/supabase'
  */
 const SEGUNDOS_URL_FOTO = 600
 
+/** Mesma entrega do feed: o print e o mesmo `FotoComprovacao` das duas listas. */
+const FOTO_PRINT = { largura: 960, qualidade: 70 }
+
 export interface Enquete {
   /** Id da ocorrencia em validacao. E ele que a RPC recebe. */
   id: string
@@ -78,6 +81,7 @@ export function useEnquetesGrupo(grupoId: string | undefined, habitIds: string[]
           'checkins',
           linhas.map((l) => l.foto_path).filter((c): c is string => Boolean(c)),
           SEGUNDOS_URL_FOTO,
+          FOTO_PRINT,
         ),
       ])
       // Falhar em silencio aqui mostraria placar zerado numa enquete que ja tem

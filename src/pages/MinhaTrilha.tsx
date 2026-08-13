@@ -1,5 +1,5 @@
 import { Coins, Loader2 } from 'lucide-react'
-import { BarraVida } from '@/components/perfil/BarraVida'
+import { BarraVida, VIDA_MAXIMA } from '@/components/perfil/BarraVida'
 import { CalendarioOfensiva } from '@/components/perfil/CalendarioOfensiva'
 import { Protecoes } from '@/components/perfil/Protecoes'
 import { Trilha } from '@/components/trilha/Trilha'
@@ -72,7 +72,7 @@ export function MinhaTrilha() {
       <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
         <BarraVida vida={perfil.vida} />
         <Protecoes doente={perfil.doente} escudos={perfil.escudos} />
-        <HistoricoVida />
+        <HistoricoVida vida={perfil.vida} />
       </div>
 
       <CalendarioOfensiva diasProdutivos={dias} />
@@ -86,7 +86,7 @@ export function MinhaTrilha() {
  * Sem esta lista a barra só mostrava o saldo, e a pessoa via o número cair sem
  * nunca saber qual rotina atrasou nem quando.
  */
-function HistoricoVida() {
+function HistoricoVida({ vida }: { vida: number }) {
   const { data: eventos, isError } = useVida()
 
   if (isError) {
@@ -94,7 +94,15 @@ function HistoricoVida() {
   }
 
   if (!eventos || eventos.length === 0) {
-    return <p className="text-xs text-muted-foreground">Sua vida ainda está inteira.</p>
+    // Lista vazia nao quer dizer vida cheia: a barra logo acima pode estar em 20
+    // de 50 e o personagem doente. Quem decide a frase e a vida, nao a lista.
+    return (
+      <p className="text-xs text-muted-foreground">
+        {vida >= VIDA_MAXIMA
+          ? 'Sua vida ainda está inteira.'
+          : 'Ainda não há registro do que mexeu na sua vida.'}
+      </p>
+    )
   }
 
   return (

@@ -3,6 +3,7 @@ import { Camera, CameraOff, Check, LogOut, Settings2, Trash2 } from 'lucide-reac
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CodigoConvite } from '@/components/grupos/CodigoConvite'
+import { FotoCapaGrupo } from '@/components/grupos/FotoCapaGrupo'
 import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
@@ -101,7 +102,10 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
     <>
       {/* Quem nao e dono encontra la dentro o convite e a saida, nao a
           administracao: prometer administrar seria mentira para a maior parte
-          dos membros. */}
+          dos membros.
+          Sem margem negativa aqui: quem recua e o cabecalho que abriga o botao.
+          No ultimo filho de um flex, ela estourava a caixa do pai e a tela do
+          grupo nascia com rolagem horizontal propria. */}
       <button
         type="button"
         aria-label={ehDono ? 'Administrar grupo' : 'Convite e saída'}
@@ -110,7 +114,7 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
           setNome(grupo.nome)
           setAberta(true)
         }}
-        className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md
+        className="flex size-11 shrink-0 items-center justify-center rounded-md
                    text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <Settings2 className="size-5" />
@@ -154,6 +158,15 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
                   </p>
                 )}
               </div>
+
+              {/* Adicionar a capa mora aqui, e nao na pagina: la o botao era um
+                  bloco que so nascia quando a consulta do grupo respondia, e
+                  empurrava o cabecalho 64px para baixo. Grupo que ja tem capa
+                  nao repete a acao: o Trocar foto vive em cima da propria
+                  imagem, onde aparecer depois nao move nada. */}
+              {!grupo.fotoUrl && (
+                <FotoCapaGrupo grupoId={grupo.id} nome={grupo.nome} fotoUrl={null} ehDono />
+              )}
 
               <div className="space-y-1.5">
                 <Botao

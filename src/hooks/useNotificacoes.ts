@@ -21,6 +21,19 @@ function opcoes(usuarioId: string | null) {
     queryKey: ['notificacoes', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<Notificacao[]> => {
+      // O cabecalho sai montado no instante do fetch, lendo a sessao que o
+      // cliente tem naquele momento. Enquanto a sessao nova nao esta aplicada o
+      // cliente cai na chave anonima, e `notificacoes` nao tem select para
+      // `anon`: o PostgREST responde 401 `permission denied`, e o console de
+      // quem acabou de criar a conta abre sujo. `usuarioId` vem do estado do
+      // React, que e uma copia da sessao e pode estar na frente dela, entao ele
+      // sozinho nao prova nada. Conferir aqui e o que amarra as duas pontas: a
+      // consulta so sai quando a sessao aplicada for a do usuario consultado, e
+      // quando nao for, falha sem ir a rede e a nova tentativa pega o token
+      // certo.
+      const { data: autenticacao } = await supabase.auth.getSession()
+      if (autenticacao.session?.user.id !== usuarioId) throw new Error('sessao_nao_aplicada')
+
       const { data, error } = await supabase
         .from('notificacoes')
         // Colunas listadas uma a uma, igual ao resto do app: com select('*')

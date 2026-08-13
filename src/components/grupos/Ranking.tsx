@@ -1,6 +1,7 @@
 import { Coins, Flame } from 'lucide-react'
 import { useMemo } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { Esqueleto } from '@/components/ui/Esqueleto'
 import type { MembroGrupo } from '@/hooks/useGrupos'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +50,82 @@ export function PlacarHoje({ membros }: { membros: MembroGrupo[] }) {
 
 // Segundo lugar a esquerda, primeiro ao centro, terceiro a direita.
 const ORDEM_PODIO = [1, 0, 2]
+
+/**
+ * O placar enquanto os numeros nao chegaram.
+ *
+ * Mora ao lado do componente de verdade porque a unica exigencia dele e ter a
+ * mesma altura: separados em arquivos diferentes, o primeiro ajuste de espaco
+ * no placar deixaria a tela pulando de novo sem ninguem perceber.
+ */
+export function PlacarEsqueleto() {
+  return (
+    <div aria-busy="true" className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <Esqueleto className="h-5 w-28" />
+        <Esqueleto className="h-5 w-16" />
+      </div>
+      {/* Barra cinza parada e identica a barra real em 0%, e "0 de N" e uma
+          afirmacao que pode estar errada. Esqueleto pulsa e nao afirma nada. */}
+      <Esqueleto className="mt-3 h-2 w-full rounded-full" />
+      <Esqueleto className="mt-2 h-4 w-52" />
+    </div>
+  )
+}
+
+/**
+ * O ranking enquanto os membros nao chegaram.
+ *
+ * O texto do cabecalho e o de verdade: ele nao depende de dado nenhum, e
+ * esconder copy fixa atras de um bloco cinza so faria a tela mudar duas vezes.
+ * O que e cinza aqui e so o que ainda nao se sabe. As posicoes de quarto lugar
+ * para baixo ficam de fora: quantas linhas existem tambem e dado.
+ */
+export function RankingEsqueleto() {
+  return (
+    <section aria-busy="true" className="space-y-3">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Ranking do mês
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Ouro ganho nos desafios do grupo neste mês. Empate vai para a ofensiva.
+        </p>
+      </div>
+
+      <ul className="flex items-end justify-center gap-2 rounded-xl border border-border bg-card p-4 shadow-sm">
+        {ORDEM_PODIO.map((i) => {
+          const primeiro = i === 0
+          return (
+            <li key={i} className="flex min-w-0 shrink basis-0 grow flex-col items-center gap-1">
+              <Esqueleto className={cn('rounded-full', primeiro ? 'size-[72px]' : 'size-[52px]')} />
+              <Esqueleto className="h-5 w-16" />
+              <Esqueleto className={primeiro ? 'h-5 w-10' : 'h-4 w-10'} />
+              <Esqueleto className="h-4 w-8" />
+              <span
+                className={cn(
+                  'mt-1 w-full rounded-t-lg bg-muted',
+                  primeiro ? 'h-14' : 'h-9',
+                )}
+              />
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* A propria linha existe sempre: quem abre o grupo e membro dele. */}
+      <div className="flex min-h-[3.25rem] items-center gap-3 rounded-xl border-2 border-primary bg-card p-3 shadow-sm">
+        <Esqueleto className="h-5 w-7 shrink-0" />
+        <Esqueleto className="size-10 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <Esqueleto className="h-5 w-32" />
+          <Esqueleto className="h-4 w-24" />
+        </div>
+        <Esqueleto className="h-5 w-12 shrink-0" />
+      </div>
+    </section>
+  )
+}
 
 export function Ranking({
   membros,
@@ -195,9 +272,12 @@ function ItemPodio({
 
   return (
     <li className="flex min-w-0 shrink basis-0 grow flex-col items-center gap-1">
+      {/* O anel acompanha a caixa do avatar, que e quadrada. Redondo, ele
+          cortava o pedestal: o cenario de chao ocupa 84% da largura colado na
+          base, entao os cantos da plataforma ficavam de fora do circulo. */}
       <span
         className={cn(
-          'inline-flex rounded-full',
+          'inline-flex rounded-lg',
           souEu && 'ring-2 ring-primary ring-offset-2 ring-offset-card',
         )}
       >
@@ -255,12 +335,15 @@ function LinhaRanking({
       >
         {posicao}º
       </span>
+      {/* A lista desce por dezenas de membros e so o comeco esta na tela. O
+          podio acima continua imediato: ele e o que a pessoa abre para ver. */}
       <Avatar
         base={membro.avatarBase}
         item={membro.itemEquipado}
         cenario={membro.cenarioEquipado}
         tamanho={40}
         doente={membro.doente}
+        adiavel
       />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">

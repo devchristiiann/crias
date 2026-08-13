@@ -10,7 +10,22 @@ import { useSessao } from './useSessao'
  */
 const SEGUNDOS_URL_CAPA = 600
 
-const assinarCapas = (caminhos: string[]) => assinarEmLote('grupos', caminhos, SEGUNDOS_URL_CAPA)
+/**
+ * Entrega unica da capa, a mesma na lista e no detalhe.
+ *
+ * A transformacao entra na chave da URL assinada, entao duas larguras eram dois
+ * downloads da mesma foto, e o detalhe ainda mostrava a miniatura borrada
+ * trocando pela grande na frente do usuario. Com uma entrega so, a URL que a
+ * lista assinou JA e a definitiva: a capa do detalhe aparece na hora, do cache
+ * do navegador, e nunca troca de imagem.
+ *
+ * O tamanho e o do maior uso: a capa e o maior elemento da tela de detalhe,
+ * largura da coluna (480px) numa tela de 2x. Acima disso nao ha ganho, porque o
+ * upload ja limita o lado maior. O preco e o card da lista, de 44px, baixar
+ * mais do que mostra, e ele e o uso raro: quem tem um grupo so cai direto no
+ * detalhe e nem chega a desenhar o card.
+ */
+const CAPA = { largura: 1024, qualidade: 70 }
 
 export interface ResumoGrupo {
   id: string
@@ -65,8 +80,11 @@ export function useGrupos() {
         ((posicoes ?? []) as { grupo: string; posicao: number }[]).map((p) => [p.grupo, p.posicao]),
       )
 
-      const capas = await assinarCapas(
+      const capas = await assinarEmLote(
+        'grupos',
         linhas.map((g) => g.foto_path).filter((c): c is string => Boolean(c)),
+        SEGUNDOS_URL_CAPA,
+        CAPA,
       )
 
       return linhas.map((g) => {
@@ -174,7 +192,12 @@ export function useGrupo(grupoId: string | undefined) {
       // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
       if (erroRanking) throw erroRanking
 
-      const capas = await assinarCapas(grupo.foto_path ? [grupo.foto_path] : [])
+      const capas = await assinarEmLote(
+        'grupos',
+        grupo.foto_path ? [grupo.foto_path] : [],
+        SEGUNDOS_URL_CAPA,
+        CAPA,
+      )
 
       const linhasMembro = (grupo.group_members ?? []) as unknown as LinhaMembro[]
       const perfil = new Map<string, NonNullable<LinhaMembro['profiles']>>()

@@ -6,15 +6,36 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#e04545" />
+    <!-- Duas cores de barra de status, escolhidas pelo proprio HTML: o atributo
+         `media` e o mecanismo previsto para isso, e por ele nenhum script
+         precisa mexer na tag depois do paint. O primeiro e o token --background
+         claro (hsl(220 20% 96%)), o segundo o --background do `.dark`
+         (hsl(220 5% 6%)). Sao os mesmos hexadecimais dos icones gerados por
+         scripts/gerar-icones.mjs, que confere o claro e aborta se divergir: por
+         isso o `content` do claro vem colado no `name` e antes do escuro, que e
+         onde a conferencia procura. Tambem e a moldura do app instalado: a garra
+         e vermelha e le sobre claro, entao o quadro acompanha o fundo do icone
+         em vez de por uma faixa vermelha que nao existe em tela nenhuma.
+         Teto conhecido: `media` segue a preferencia do sistema, e o tema do app
+         tambem vive em localStorage. Quem forcar o escuro num aparelho claro
+         continua com a barra clara ate trocar a preferencia do sistema. -->
+    <meta name="theme-color" content="#f3f4f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f10" media="(prefers-color-scheme: dark)" />
+    <!-- `mobile-web-app-capable` e a tag padrao, e e ela que o Chrome cobra: a
+         de prefixo `apple-` sozinha imprime aviso de obsoleta em toda pagina. A
+         `apple-` fica junto porque o iPhone anterior ao 16.4 so abre em janela
+         propria por ela, e app instalado no iPhone e requisito do push aqui. -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Crias" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
     <!-- O iOS nao le o manifest para escolher o icone da tela de inicio: sem
-         esta tag ele salva um print da pagina no lugar do personagem. -->
-    <link rel="apple-touch-icon" href="/icone-192.png" />
+         esta tag ele salva um print da pagina no lugar da logo. O tamanho
+         declarado e o real do arquivo, senao o Safari escolhe errado quando ha
+         mais de um candidato. -->
+    <link rel="apple-touch-icon" sizes="192x192" href="/icone-192.png" />
     <title>Crias</title>
     <script>
       // Anti-FOUC: aplica o tema salvo antes do primeiro paint.

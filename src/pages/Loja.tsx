@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Coins, Gift, Loader2, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Coins, Gift, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { Confirmar } from '@/components/ui/Confirmar'
+import { Esqueleto } from '@/components/ui/Esqueleto'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
 import { type Perfil, usePerfil } from '@/hooks/usePerfil'
@@ -17,6 +18,8 @@ interface Premio {
   id: string
   titulo: string
   custo_ouro: number
+  /** Quantas vezes este prêmio já foi resgatado. Vem de `redemptions`. */
+  resgates: number
 }
 
 interface ItemLoja {
@@ -30,7 +33,10 @@ interface ItemLoja {
 export function Loja() {
   const { data: perfil } = usePerfil()
   const [criando, setCriando] = useState(false)
-  const ouro = perfil?.ouro ?? 0
+  // Null enquanto a carteira nao chegou, nunca zero. Zero e um saldo de
+  // verdade: mostrado no lugar do desconhecido, ele diz que a pessoa esta
+  // quebrada e desabilita tudo que ela podia comprar.
+  const ouro = perfil?.ouro ?? null
 
   return (
     <section className="space-y-5">
@@ -41,7 +47,11 @@ export function Loja() {
         </div>
         <span className="flex items-center gap-1.5 rounded-lg bg-warning/15 px-3 py-2 font-semibold text-warning">
           <Coins className="size-4" />
-          {ouro}
+          {/* Largura minima de quatro digitos: sem ela a pilula inteira encolhe
+              quando o esqueleto vira numero, e o bloco pisca de tamanho. */}
+          <span className="inline-block min-w-[4ch] text-right tabular-nums">
+            {ouro === null ? <Esqueleto className="h-6 w-full bg-warning/30" /> : ouro}
+          </span>
         </span>
       </header>
 
@@ -51,13 +61,35 @@ export function Loja() {
   )
 }
 
+/**
+ * Esqueleto de um prêmio, com a MESMA altura da linha de verdade: ícone de
+ * 44px na primeira faixa, botão de 44px embaixo. Sem isto a lista inteira e
+ * tudo que vem depois dela desciam de uma vez quando a consulta chegava.
+ */
+function EsqueletoPremio() {
+  return (
+    <li className="rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Esqueleto className="size-11 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Esqueleto className="h-4 w-2/3" />
+          <Esqueleto className="h-3 w-20" />
+        </div>
+      </div>
+      <Esqueleto className="mt-3 h-11 w-full rounded-lg" />
+    </li>
+  )
+}
+
 function Premios({
   ouro,
   aoCriar,
   criando,
   setCriando,
 }: {
-  ouro: number
+  // Null enquanto a carteira nao chegou. Saldo desconhecido nao autoriza
+  // resgate: o botao so libera quando existe numero de verdade para comparar.
+  ouro: number | null
   aoCriar: () => void
   criando: boolean
   setCriando: (v: boolean) => void
@@ -70,18 +102,37 @@ function Premios({
   // Uma instancia de confirmacao por acao, guiada pelo premio escolhido.
   const [aResgatar, setAResgatar] = useState<Premio | null>(null)
   const [aRemover, setARemover] = useState<Premio | null>(null)
+  // Resgate gasta ouro e nao entrega nada na tela: sem este aviso o unico
+  // sinal era o contador caindo, e a pessoa ficava adivinhando se funcionou.
+  const [resgatado, setResgatado] = useState<{ id: string; ouro: number } | null>(null)
+
+  // O aviso some sozinho. O que fica de historico e a contagem de resgates na
+  // propria linha do premio, que vem do banco.
+  useEffect(() => {
+    if (!resgatado) return
+    const relogio = setTimeout(() => setResgatado(null), 6000)
+    return () => clearTimeout(relogio)
+  }, [resgatado])
 
   const { data: premios, isPending, isError, refetch } = useQuery({
     queryKey: ['premios', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<Premio[]> => {
-      const { data, error } = await supabase
-        .from('rewards')
-        .select('id, titulo, custo_ouro')
-        .eq('ativo', true)
-        .order('custo_ouro', { ascending: true })
-      if (error) throw error
-      return data ?? []
+      const [lista, feitos] = await Promise.all([
+        supabase
+          .from('rewards')
+          .select('id, titulo, custo_ouro')
+          .eq('ativo', true)
+          .order('custo_ouro', { ascending: true }),
+        supabase.from('redemptions').select('reward_id'),
+      ])
+      if (lista.error) throw lista.error
+      if (feitos.error) throw feitos.error
+      const contagem = new Map<string, number>()
+      for (const f of feitos.data ?? []) {
+        contagem.set(f.reward_id, (contagem.get(f.reward_id) ?? 0) + 1)
+      }
+      return (lista.data ?? []).map((p) => ({ ...p, resgates: contagem.get(p.id) ?? 0 }))
     },
   })
 
@@ -104,11 +155,15 @@ function Premios({
     mutationFn: async (id: string) => {
       const { data, error } = await supabase.rpc('resgatar_premio', { p_reward: id })
       if (error) throw error
-      if (data?.error === 'ouro_insuficiente') throw new Error('Ouro insuficiente.')
-      if (data?.error) throw new Error('Não deu para resgatar agora.')
+      const resposta = data as { error?: string; ouro?: number }
+      if (resposta?.error === 'ouro_insuficiente') throw new Error('Ouro insuficiente.')
+      if (resposta?.error) throw new Error('Não deu para resgatar agora.')
+      return resposta
     },
-    onSuccess: () => {
+    // So o numero que a RPC devolveu. A tela nunca recalcula o saldo.
+    onSuccess: (resposta, id) => {
       setErro(null)
+      setResgatado({ id, ouro: resposta.ouro ?? 0 })
       cliente.invalidateQueries({ queryKey: ['perfil'] })
       cliente.invalidateQueries({ queryKey: ['premios'] })
     },
@@ -133,7 +188,15 @@ function Premios({
         Seus prêmios
       </h2>
 
-      {isPending && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+      {isPending && (
+        <>
+          <ul aria-busy="true" className="space-y-2">
+            <EsqueletoPremio />
+            <EsqueletoPremio />
+          </ul>
+          <Esqueleto className="h-11 w-full rounded-lg" />
+        </>
+      )}
 
       {isError && (
         <EstadoErro mensagem="Não deu para carregar seus prêmios." aoTentarDeNovo={refetch} />
@@ -154,23 +217,49 @@ function Premios({
 
       <ul className="space-y-2">
         {(premios ?? []).map((p) => {
-          const pode = ouro >= p.custo_ouro
+          const pode = ouro !== null && ouro >= p.custo_ouro
           return (
-            <li
-              key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
-                <Gift className="size-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{p.titulo}</span>
-                <span className="block text-xs text-muted-foreground">{p.custo_ouro} de ouro</span>
-              </span>
+            <li key={p.id} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+              {/* Titulo em cima com a lixeira no canto, Resgatar embaixo em
+                  linha propria. Lixeira encostada no botao que a pessoa quer
+                  tocar e toque acidental esperando acontecer. */}
+              <div className="flex items-start gap-3">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
+                  <Gift className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words font-medium">{p.titulo}</span>
+                  {/* Custo e historico na MESMA linha: uma linha a mais so em
+                      premio ja resgatado empurraria o bloco de baixo quando a
+                      consulta chega. */}
+                  <span className="block text-xs text-muted-foreground">
+                    {p.custo_ouro} de ouro
+                    {p.resgates > 0 &&
+                      `. Resgatado ${p.resgates === 1 ? '1 vez' : `${p.resgates} vezes`}`}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remover ${p.titulo}`}
+                  disabled={arquivar.isPending}
+                  onClick={() => {
+                    setErro(null)
+                    setARemover(p)
+                  }}
+                  className="-mr-1 flex size-11 shrink-0 items-center justify-center rounded-md
+                             text-muted-foreground transition-colors hover:bg-accent
+                             hover:text-destructive disabled:opacity-50"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+
               <Botao
                 variante={pode ? 'primario' : 'secundario'}
+                className="mt-3 w-full"
                 disabled={!pode}
                 carregando={resgatar.isPending && resgatar.variables === p.id}
+                aria-label={`Resgatar ${p.titulo}`}
                 onClick={() => {
                   setErro(null)
                   setAResgatar(p)
@@ -178,20 +267,16 @@ function Premios({
               >
                 Resgatar
               </Botao>
-              <button
-                type="button"
-                aria-label={`Remover ${p.titulo}`}
-                disabled={arquivar.isPending}
-                onClick={() => {
-                  setErro(null)
-                  setARemover(p)
-                }}
-                className="flex size-11 shrink-0 items-center justify-center rounded-md
-                           text-muted-foreground hover:bg-accent hover:text-destructive
-                           disabled:opacity-50"
-              >
-                <Trash2 className="size-4" />
-              </button>
+
+              {resgatado?.id === p.id && (
+                <p
+                  role="status"
+                  className="mt-2 flex items-center gap-1.5 border-t border-border pt-2 text-sm text-success"
+                >
+                  <Check className="size-4 shrink-0" />
+                  Resgatado. Ficaram {resgatado.ouro} de ouro.
+                </p>
+              )}
             </li>
           )
         })}
@@ -275,12 +360,31 @@ function Premios({
   )
 }
 
-const PRATELEIRAS: { slot: Slot; rotulo: string }[] = [
-  { slot: 'personagem', rotulo: 'Personagens' },
-  { slot: 'acessorio', rotulo: 'Acessórios' },
-  { slot: 'cenario', rotulo: 'Cenários' },
-  { slot: 'fundo', rotulo: 'Fundos' },
+const PRATELEIRAS: { slot: Slot; rotulo: string; vazio: string }[] = [
+  { slot: 'personagem', rotulo: 'Personagens', vazio: 'Nenhum personagem à venda agora.' },
+  { slot: 'acessorio', rotulo: 'Acessórios', vazio: 'Nenhum acessório à venda agora.' },
+  { slot: 'cenario', rotulo: 'Cenários', vazio: 'Nenhum cenário à venda agora.' },
+  { slot: 'fundo', rotulo: 'Fundos', vazio: 'Nenhum fundo à venda agora.' },
 ]
+
+/**
+ * Esqueleto de uma peça, com a MESMA altura do cartão de personagem, que é a
+ * aba de estreia: prévia de 80px, nome, família e botão de 44px. Era esta
+ * grade que faltava, e o giro de 20px virando cartão de 207px era o maior
+ * pulo de layout do app.
+ */
+function EsqueletoPeca() {
+  return (
+    <li className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <Esqueleto className="size-20 rounded-lg" />
+      {/* 17.5px e a altura da linha do nome (text-sm com leading-tight), 16px a
+          da familia (text-xs). Esqueleto e forma, entao a medida vem daqui. */}
+      <Esqueleto className="h-[17.5px] w-20" />
+      <Esqueleto className="h-4 w-14" />
+      <Esqueleto className="h-11 w-full rounded-lg" />
+    </li>
+  )
+}
 
 /**
  * Coleção: personagem, acessório, cenário e fundo de perfil.
@@ -290,7 +394,7 @@ const PRATELEIRAS: { slot: Slot; rotulo: string }[] = [
  * banco e não no catálogo, ela simplesmente não aparece, em vez de virar um
  * cartão quebrado.
  */
-function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined }) {
+function Colecao({ ouro, perfil }: { ouro: number | null; perfil: Perfil | undefined }) {
   const cliente = useQueryClient()
   const { usuarioId } = useSessao()
   const [erro, setErro] = useState<string | null>(null)
@@ -377,6 +481,7 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
   // Personagem sempre tem um vestido, entao so os outros slots ganham a opcao de nada.
   const temNenhum = aba !== 'personagem'
   const vazio = !equipadoNoSlot(aba)
+  const semPecas = !isPending && !isError && daAba.length === 0
 
   return (
     <div className="space-y-3">
@@ -405,8 +510,15 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
                 )}
               >
                 {p.rotulo}
-                <span className="ml-1.5 text-xs tabular-nums opacity-70">
-                  {meus}/{doSlot.length}
+                {/* Largura reservada para a maior contagem possivel: sem ela a
+                    aba muda de tamanho quando o numero chega e empurra as
+                    vizinhas de lado. */}
+                <span className="ml-1.5 inline-block min-w-[2.5rem] text-right text-xs tabular-nums opacity-70">
+                  {isPending ? (
+                    <Esqueleto className="h-3 w-full bg-current opacity-40" />
+                  ) : (
+                    `${meus}/${doSlot.length}`
+                  )}
                 </span>
               </button>
             )
@@ -414,63 +526,84 @@ function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined })
         </div>
       </div>
 
-      {isPending && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       {isError && <EstadoErro mensagem="Não deu para carregar a coleção." aoTentarDeNovo={refetch} />}
       {erro && !escolhida && <p className="text-sm text-destructive">{erro}</p>}
 
-      <ul className="grid grid-cols-2 gap-2">
-        {/* Tirar tem que ser tao facil quanto vestir: a opcao de nada e o primeiro
-            cartao da grade, no mesmo formato dos outros. */}
-        {temNenhum && (
-          <li
-            className={cn(
-              'flex flex-col items-center gap-2 rounded-xl border bg-card p-3 shadow-sm',
-              vazio ? 'border-primary' : 'border-border',
-            )}
-          >
-            <span className="flex h-20 items-end justify-center">
-              <span
-                aria-hidden
-                className="size-20 rounded-lg border-2 border-dashed border-border"
-              />
-            </span>
+      {isPending && (
+        <ul aria-busy="true" className="grid grid-cols-2 gap-2">
+          <EsqueletoPeca />
+          <EsqueletoPeca />
+          <EsqueletoPeca />
+          <EsqueletoPeca />
+          <EsqueletoPeca />
+          <EsqueletoPeca />
+        </ul>
+      )}
 
-            <span className="text-center text-sm font-medium leading-tight">Nenhum</span>
-
-            <Botao
-              variante={vazio ? 'secundario' : 'primario'}
-              className="w-full"
-              disabled={vazio}
-              carregando={equipar.isPending && equipar.variables?.id === null}
-              onClick={() => equipar.mutate({ id: null, slot: aba })}
+      {!isPending && !isError && (
+        <ul className="grid grid-cols-2 gap-2">
+          {/* Tirar tem que ser tao facil quanto vestir: a opcao de nada e o primeiro
+              cartao da grade, no mesmo formato dos outros. */}
+          {temNenhum && (
+            <li
+              className={cn(
+                'flex flex-col items-center gap-2 rounded-xl border bg-card p-3 shadow-sm',
+                vazio ? 'border-primary' : 'border-border',
+              )}
             >
-              {vazio ? 'Vestido' : 'Vestir'}
-            </Botao>
-          </li>
-        )}
+              <span className="flex h-20 items-end justify-center">
+                <span
+                  aria-hidden
+                  className="size-20 rounded-lg border-2 border-dashed border-border"
+                />
+              </span>
 
-        {daAba.map((item) => (
-          <CartaoPeca
-            key={item.id}
-            item={item}
-            perfil={perfil}
-            equipado={equipadoNoSlot(item.slot) === item.id}
-            ouro={ouro}
-            ocupado={
-              (comprar.isPending && comprar.variables === item.id) ||
-              (equipar.isPending && equipar.variables?.id === item.id)
-            }
-            aoComprar={() => escolher(item)}
-            // Vestir e tirar peca que ja e sua nao gasta nada e desfaz num
-            // toque, entao passa direto, personagem inclusive. Quem confirma e
-            // so a compra.
-            aoEquipar={(tirar) => {
-              setErro(null)
-              equipar.mutate({ id: tirar ? null : item.id, slot: item.slot })
-            }}
-          />
-        ))}
-      </ul>
+              <span className="text-center text-sm font-medium leading-tight">Nenhum</span>
+
+              <Botao
+                variante={vazio ? 'secundario' : 'primario'}
+                className="w-full"
+                disabled={vazio}
+                carregando={equipar.isPending && equipar.variables?.id === null}
+                onClick={() => equipar.mutate({ id: null, slot: aba })}
+              >
+                {vazio ? 'Vestido' : 'Vestir'}
+              </Botao>
+            </li>
+          )}
+
+          {daAba.map((item) => (
+            <CartaoPeca
+              key={item.id}
+              item={item}
+              perfil={perfil}
+              equipado={equipadoNoSlot(item.slot) === item.id}
+              ouro={ouro}
+              ocupado={
+                (comprar.isPending && comprar.variables === item.id) ||
+                (equipar.isPending && equipar.variables?.id === item.id)
+              }
+              aoComprar={() => escolher(item)}
+              // Vestir e tirar peca que ja e sua nao gasta nada e desfaz num
+              // toque, entao passa direto, personagem inclusive. Quem confirma e
+              // so a compra.
+              aoEquipar={(tirar) => {
+                setErro(null)
+                equipar.mutate({ id: tirar ? null : item.id, slot: item.slot })
+              }}
+            />
+          ))}
+        </ul>
+      )}
+
+      {/* Aba sem peca nao pode ficar em branco, nem sobrar so o cartao Nenhum:
+          quem chega ali precisa saber que a prateleira esta vazia, e nao que a
+          tela quebrou. */}
+      {semPecas && (
+        <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+          {PRATELEIRAS.find((p) => p.slot === aba)?.vazio} Volte depois.
+        </p>
+      )}
 
       <Confirmar
         aberta={escolhida !== null}
@@ -498,13 +631,13 @@ function CartaoPeca({
   item: ItemLoja
   perfil: Perfil | undefined
   equipado: boolean
-  ouro: number
+  ouro: number | null
   ocupado: boolean
   aoComprar: () => void
   aoEquipar: (tirar: boolean) => void
 }) {
   const peca = POR_ID.get(item.id)
-  const pode = ouro >= item.custo_ouro
+  const pode = ouro !== null && ouro >= item.custo_ouro
   // Personagem não tem botão de tirar: sempre existe um vestido.
   const podeTirar = equipado && item.slot !== 'personagem'
 
@@ -517,17 +650,32 @@ function CartaoPeca({
     >
       <span className="flex h-20 items-end justify-center">
         {item.slot === 'personagem' ? (
-          <Avatar base={item.id} tamanho={76} />
+          <Avatar base={item.id} tamanho={76} adiavel />
         ) : item.slot === 'acessorio' ? (
-          <Avatar base={perfil?.avatar_base} item={item.id} tamanho={76} />
+          <Avatar base={perfil?.avatar_base} item={item.id} tamanho={76} adiavel />
+        ) : item.slot === 'cenario' ? (
+          // PNG solto nao mostra o que a pessoa esta comprando: pedestal so
+          // vira pedestal com alguem em cima. A previa monta a cena com o
+          // personagem que ela ja veste, no mesmo componente da tela.
+          <Avatar base={perfil?.avatar_base} cenario={item.id} tamanho={76} adiavel />
         ) : (
-          <img
-            src={peca?.arquivo}
-            alt=""
-            aria-hidden
-            draggable={false}
-            className="size-20 object-contain [image-rendering:pixelated]"
-          />
+          // Fundo nunca aparece solto: na trilha ele sangra por object-cover
+          // atras do conteudo, sob o veu que segura o contraste. O PNG cru em
+          // object-contain mostrava outra peca, e no tema escuro o miolo
+          // transparente do Portal Celeste virava buraco preto.
+          <span className="relative block size-20 overflow-hidden rounded-lg border border-border bg-card">
+            <img
+              src={peca?.arquivo}
+              alt=""
+              aria-hidden
+              draggable={false}
+              data-pixel
+              loading="lazy"
+              decoding="async"
+              className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+            />
+            <span aria-hidden className="pointer-events-none absolute inset-0 bg-card/65" />
+          </span>
         )}
       </span>
 
@@ -537,11 +685,15 @@ function CartaoPeca({
       )}
 
       {!item.possui && (
+        // O preco sozinho nao nomeia botao nenhum: dois itens de 400 viravam
+        // dois botoes chamados "400" na mesma tela, indistinguiveis para o
+        // leitor de tela e ambiguos para o teste.
         <Botao
           variante={pode ? 'primario' : 'secundario'}
           disabled={!pode}
           carregando={ocupado}
           className="w-full"
+          aria-label={`Comprar ${item.nome} por ${item.custo_ouro} de ouro`}
           onClick={aoComprar}
         >
           <Coins className="size-4" />
@@ -555,6 +707,7 @@ function CartaoPeca({
           className="w-full"
           disabled={equipado && !podeTirar}
           carregando={ocupado}
+          aria-label={`${equipado ? (podeTirar ? 'Tirar' : 'Vestido') : 'Vestir'} ${item.nome}`}
           onClick={() => aoEquipar(podeTirar)}
         >
           {equipado ? (podeTirar ? 'Tirar' : 'Vestido') : 'Vestir'}

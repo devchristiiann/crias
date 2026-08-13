@@ -1,9 +1,10 @@
 project_id = "oeaftenwsmbkdxqseqrb"
 
-# verify_jwt = false nas duas funcoes, de proposito.
+# verify_jwt = false nas tres funcoes, de proposito.
 #
 # push-dispatch e chamada pelo pg_cron, que nao tem JWT de usuario: ela se
 # protege com o header x-internal-secret comparado em tempo constante.
+# limpar-fotos tambem e do pg_cron e se protege do mesmo jeito.
 # quick-check-in e chamada pelo Service Worker, que tambem nao carrega sessao:
 # ela se protege com o token_rapido de uso unico que so existe dentro da carga
 # cifrada do web push.
@@ -16,4 +17,7 @@ project_id = "oeaftenwsmbkdxqseqrb"
 verify_jwt = false
 
 [functions.quick-check-in]
+verify_jwt = false
+
+[functions.limpar-fotos]
 verify_jwt = false
