@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { useBadge } from '@/hooks/useBadge'
 import { BottomNav } from './BottomNav'
 
 /** Id do elemento que rola. O ScrollToTop precisa dele para voltar ao topo. */
@@ -24,6 +25,10 @@ export const ID_CONTEUDO = 'conteudo'
  * continuar comecando exatamente onde o dedo ve o botao.
  */
 export function AppShell() {
+  // Fica na casca, e nao na tela Hoje, para a bolinha ficar certa mesmo quando o
+  // usuario abre o app direto na Loja ou nos Grupos.
+  useBadge()
+
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       <main

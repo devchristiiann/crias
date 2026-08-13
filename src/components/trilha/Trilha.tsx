@@ -1,6 +1,7 @@
 import { Check, Gift } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { POR_ID } from '@/lib/catalogo'
 import { diaEMes } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -55,11 +56,19 @@ export function Trilha({
   diasProdutivos,
   avatarBase,
   itemEquipado,
+  cenarioEquipado,
+  fundoEquipado,
 }: {
   diasProdutivos: string[]
   avatarBase: string
   itemEquipado: string | null
+  cenarioEquipado: string | null
+  fundoEquipado: string | null
 }) {
+  // Id fora do catalogo, ou de outro slot, nao desenha nada: e melhor o bloco de
+  // sempre do que imagem quebrada, ou um personagem esticado, atras da trilha.
+  const peca = fundoEquipado ? POR_ID.get(fundoEquipado) : undefined
+  const fundo = peca?.slot === 'fundo' ? peca : undefined
   const conquistados = diasProdutivos.length
   const nos = montarNos(diasProdutivos)
   const altura = nos.length * ESPACO
@@ -92,10 +101,26 @@ export function Trilha({
   const pontos = nos.map((no, posicao) => `${centroX(no.indice)},${centroY(posicao)}`)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm">
+      {fundo && (
+        <>
+          <img
+            src={fundo.arquivo}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            data-pixel
+            className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+          />
+          {/* Veu por cima da cena. Sem ele o numero do no e a data se perdem no
+              desenho, e o contraste do texto e requisito, nao enfeite. */}
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-card/65" />
+        </>
+      )}
+
       <div
         ref={janela}
-        className="overflow-y-auto overflow-x-hidden overscroll-contain motion-safe:scroll-smooth"
+        className="relative overflow-y-auto overflow-x-hidden overscroll-contain motion-safe:scroll-smooth"
         style={{ maxHeight: ALTURA_JANELA }}
       >
         <ol className="relative mx-auto" style={{ width: LARGURA, height: altura }}>
@@ -201,7 +226,12 @@ export function Trilha({
               }
               onAnimationEnd={() => setPulo(null)}
             >
-              <Avatar base={avatarBase} item={itemEquipado} tamanho={AVATAR} />
+              <Avatar
+                base={avatarBase}
+                item={itemEquipado}
+                cenario={cenarioEquipado}
+                tamanho={AVATAR}
+              />
             </div>
           </div>
         </ol>

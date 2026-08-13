@@ -7,6 +7,8 @@ export interface Perfil {
   nome: string
   avatar_base: string
   item_equipado: string | null
+  cenario_equipado: string | null
+  fundo_equipado: string | null
   ouro: number
   vida: number
   xp: number
@@ -21,7 +23,9 @@ export function usePerfil() {
     queryFn: async (): Promise<Perfil> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, nome, avatar_base, item_equipado, ouro, vida, xp')
+        // Colunas listadas uma a uma de proposito: com select('*') qualquer
+        // coluna sensivel nova vaza para o navegador sem ninguem perceber.
+        .select('id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp')
         .eq('id', usuarioId!)
         .single()
       if (error) throw error

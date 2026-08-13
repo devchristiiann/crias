@@ -131,6 +131,7 @@ export interface MembroGrupo {
   nome: string
   avatarBase: string
   itemEquipado: string | null
+  cenarioEquipado: string | null
   concluidosHoje: number
   streakTotal: number
 }
@@ -142,6 +143,7 @@ interface LinhaMembro {
     nome: string
     avatar_base: string
     item_equipado: string | null
+    cenario_equipado: string | null
   } | null
 }
 
@@ -167,7 +169,7 @@ export function useGrupo(grupoId: string | undefined) {
         supabase
           .from('groups')
           .select(
-            'id, nome, codigo_convite, dono_id, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado))',
+            'id, nome, codigo_convite, dono_id, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado))',
           )
           .eq('id', grupoId!)
           .single(),
@@ -243,6 +245,7 @@ export function useGrupo(grupoId: string | undefined) {
             nome: p.nome,
             avatarBase: p.avatar_base,
             itemEquipado: p.item_equipado,
+            cenarioEquipado: p.cenario_equipado,
             concluidosHoje: concluidosPorUsuario.get(p.id) ?? 0,
             streakTotal: streakPorUsuario.get(p.id) ?? 0,
           }

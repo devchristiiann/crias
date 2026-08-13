@@ -1,0 +1,911 @@
+[
+  {
+    "id": "rob-1",
+    "nome": "Robô Sucata",
+    "tipo": "personagem",
+    "copias": 3,
+    "ilhas": 176,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "79x128",
+    "arquivo": "/sprites/personagens/rob-1-robo-sucata.png",
+    "kb": 1.7,
+    "ancoraCabeca": [
+      40,
+      0
+    ],
+    "ancoraMao": [
+      68,
+      74
+    ]
+  },
+  {
+    "id": "pes-3",
+    "nome": "Anã Ferreira",
+    "tipo": "personagem",
+    "ilhas": 3,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "102x128",
+    "arquivo": "/sprites/personagens/pes-3-ana-ferreira.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      51,
+      0
+    ],
+    "ancoraMao": [
+      88,
+      74
+    ]
+  },
+  {
+    "id": "anp-4",
+    "nome": "Lobo",
+    "tipo": "personagem",
+    "ilhas": 11,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "89x128",
+    "arquivo": "/sprites/personagens/anp-4-lobo.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      45,
+      0
+    ],
+    "ancoraMao": [
+      77,
+      74
+    ]
+  },
+  {
+    "id": "pes-5",
+    "nome": "Criança Aventureira",
+    "tipo": "personagem",
+    "ilhas": 96,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "67x128",
+    "arquivo": "/sprites/personagens/pes-5-crianca-aventureira.png",
+    "kb": 1.4,
+    "ancoraCabeca": [
+      34,
+      0
+    ],
+    "ancoraMao": [
+      58,
+      74
+    ]
+  },
+  {
+    "id": "rob-4",
+    "nome": "Andróide Polido",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "50x128",
+    "arquivo": "/sprites/personagens/rob-4-androide-polido.png",
+    "kb": 1.1,
+    "ancoraCabeca": [
+      25,
+      0
+    ],
+    "ancoraMao": [
+      43,
+      74
+    ]
+  },
+  {
+    "id": "anf-7",
+    "nome": "Filhote de Foca",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "128x128",
+    "arquivo": "/sprites/personagens/anf-7-filhote-de-foca.png",
+    "kb": 2.4,
+    "ancoraCabeca": [
+      64,
+      0
+    ],
+    "ancoraMao": [
+      110,
+      74
+    ]
+  },
+  {
+    "id": "deu-1",
+    "nome": "Mini Zeus",
+    "tipo": "personagem",
+    "ilhas": 24,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "78x128",
+    "arquivo": "/sprites/personagens/deu-1-mini-zeus.png",
+    "kb": 2.1,
+    "ancoraCabeca": [
+      39,
+      0
+    ],
+    "ancoraMao": [
+      67,
+      74
+    ]
+  },
+  {
+    "id": "anf-1",
+    "nome": "Panda",
+    "tipo": "personagem",
+    "copias": 3,
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "92x128",
+    "arquivo": "/sprites/personagens/anf-1-panda.png",
+    "kb": 2.4,
+    "ancoraCabeca": [
+      46,
+      0
+    ],
+    "ancoraMao": [
+      79,
+      74
+    ]
+  },
+  {
+    "id": "deu-5",
+    "nome": "Medusa",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "97x128",
+    "arquivo": "/sprites/personagens/deu-5-medusa.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      49,
+      0
+    ],
+    "ancoraMao": [
+      83,
+      74
+    ]
+  },
+  {
+    "id": "anf-2",
+    "nome": "Raposa",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "96x96",
+    "arquivo": "/sprites/personagens/anf-2-raposa.png",
+    "kb": 1.6,
+    "ancoraCabeca": [
+      48,
+      0
+    ],
+    "ancoraMao": [
+      83,
+      56
+    ]
+  },
+  {
+    "id": "deu-2",
+    "nome": "Mini Thor",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "104x128",
+    "arquivo": "/sprites/personagens/deu-2-mini-thor.png",
+    "kb": 1.7,
+    "ancoraCabeca": [
+      52,
+      0
+    ],
+    "ancoraMao": [
+      89,
+      74
+    ]
+  },
+  {
+    "id": "mof-5",
+    "nome": "Morceguinho",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "96x128",
+    "arquivo": "/sprites/personagens/mof-5-morceguinho.png",
+    "kb": 2.4,
+    "ancoraCabeca": [
+      48,
+      0
+    ],
+    "ancoraMao": [
+      83,
+      74
+    ]
+  },
+  {
+    "id": "pes-2",
+    "nome": "Mago Barrigudo",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "110x128",
+    "arquivo": "/sprites/personagens/pes-2-mago-barrigudo.png",
+    "kb": 1.9,
+    "ancoraCabeca": [
+      55,
+      0
+    ],
+    "ancoraMao": [
+      95,
+      74
+    ]
+  },
+  {
+    "id": "anf-4",
+    "nome": "Capivara",
+    "tipo": "personagem",
+    "ilhas": 34,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "87x128",
+    "arquivo": "/sprites/personagens/anf-4-capivara.png",
+    "kb": 2.3,
+    "ancoraCabeca": [
+      44,
+      0
+    ],
+    "ancoraMao": [
+      75,
+      74
+    ]
+  },
+  {
+    "id": "fol-2",
+    "nome": "Curupira",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "62x128",
+    "arquivo": "/sprites/personagens/fol-2-curupira.png",
+    "kb": 1.2,
+    "ancoraCabeca": [
+      31,
+      0
+    ],
+    "ancoraMao": [
+      53,
+      74
+    ]
+  },
+  {
+    "id": "fol-4",
+    "nome": "Boitatá",
+    "tipo": "personagem",
+    "ilhas": 4,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "128x126",
+    "arquivo": "/sprites/personagens/fol-4-boitata.png",
+    "kb": 2.5,
+    "ancoraCabeca": [
+      64,
+      0
+    ],
+    "ancoraMao": [
+      110,
+      73
+    ]
+  },
+  {
+    "id": "rob-3",
+    "nome": "Drone Mensageiro",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 17,
+    "saida": "96x61",
+    "arquivo": "/sprites/personagens/rob-3-drone-mensageiro.png",
+    "kb": 1.1,
+    "ancoraCabeca": [
+      48,
+      0
+    ],
+    "ancoraMao": [
+      83,
+      35
+    ]
+  },
+  {
+    "id": "mof-3",
+    "nome": "Fantasminha",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "119x128",
+    "arquivo": "/sprites/personagens/mof-3-fantasminha.png",
+    "kb": 3.3,
+    "ancoraCabeca": [
+      60,
+      0
+    ],
+    "ancoraMao": [
+      102,
+      74
+    ]
+  },
+  {
+    "id": "pes-6",
+    "nome": "Corredora",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "81x128",
+    "arquivo": "/sprites/personagens/pes-6-corredora.png",
+    "kb": 1.3,
+    "ancoraCabeca": [
+      41,
+      0
+    ],
+    "ancoraMao": [
+      70,
+      74
+    ]
+  },
+  {
+    "id": "anp-2",
+    "nome": "Urso Ranzinza",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "102x128",
+    "arquivo": "/sprites/personagens/anp-2-urso-ranzinza.png",
+    "kb": 3.2,
+    "ancoraCabeca": [
+      51,
+      0
+    ],
+    "ancoraMao": [
+      88,
+      74
+    ]
+  },
+  {
+    "id": "pes-4",
+    "nome": "Vovó Guerreira",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "85x128",
+    "arquivo": "/sprites/personagens/pes-4-vovo-guerreira.png",
+    "kb": 1.8,
+    "ancoraCabeca": [
+      43,
+      0
+    ],
+    "ancoraMao": [
+      73,
+      74
+    ]
+  },
+  {
+    "id": "anf-5",
+    "nome": "Pinguim",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "110x128",
+    "arquivo": "/sprites/personagens/anf-5-pinguim.png",
+    "kb": 1,
+    "ancoraCabeca": [
+      55,
+      0
+    ],
+    "ancoraMao": [
+      95,
+      74
+    ]
+  },
+  {
+    "id": "mop-6",
+    "nome": "Golem de Pedra",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 21,
+    "saida": "94x81",
+    "arquivo": "/sprites/personagens/mop-6-golem-de-pedra.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      47,
+      0
+    ],
+    "ancoraMao": [
+      81,
+      47
+    ]
+  },
+  {
+    "id": "pes-1",
+    "nome": "Guerreira Robusta",
+    "tipo": "personagem",
+    "ilhas": 100,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "99x128",
+    "arquivo": "/sprites/personagens/pes-1-guerreira-robusta.png",
+    "kb": 1.8,
+    "ancoraCabeca": [
+      50,
+      0
+    ],
+    "ancoraMao": [
+      85,
+      74
+    ]
+  },
+  {
+    "id": "mop-4",
+    "nome": "Esqueleto",
+    "tipo": "personagem",
+    "ilhas": 309,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "67x128",
+    "arquivo": "/sprites/personagens/mop-4-esqueleto.png",
+    "kb": 1.6,
+    "ancoraCabeca": [
+      34,
+      0
+    ],
+    "ancoraMao": [
+      58,
+      74
+    ]
+  },
+  {
+    "id": "mop-3",
+    "nome": "Slime Mutante",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 20,
+    "saida": "95x86",
+    "arquivo": "/sprites/personagens/mop-3-slime-mutante.png",
+    "kb": 1.6,
+    "ancoraCabeca": [
+      48,
+      0
+    ],
+    "ancoraMao": [
+      82,
+      50
+    ]
+  },
+  {
+    "id": "deu-6",
+    "nome": "Kitsune",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "96x89",
+    "arquivo": "/sprites/personagens/deu-6-kitsune.png",
+    "kb": 1.6,
+    "ancoraCabeca": [
+      48,
+      0
+    ],
+    "ancoraMao": [
+      83,
+      52
+    ]
+  },
+  {
+    "id": "anf-3",
+    "nome": "Coelho",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "67x128",
+    "arquivo": "/sprites/personagens/anf-3-coelho.png",
+    "kb": 1.6,
+    "ancoraCabeca": [
+      34,
+      0
+    ],
+    "ancoraMao": [
+      58,
+      74
+    ]
+  },
+  {
+    "id": "deu-4",
+    "nome": "Poseidon",
+    "tipo": "personagem",
+    "ilhas": 33,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "107x128",
+    "arquivo": "/sprites/personagens/deu-4-poseidon.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      54,
+      0
+    ],
+    "ancoraMao": [
+      92,
+      74
+    ]
+  },
+  {
+    "id": "anp-1",
+    "nome": "T-Rex",
+    "tipo": "personagem",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "94x128",
+    "arquivo": "/sprites/personagens/anp-1-t-rex.png",
+    "kb": 1.9,
+    "ancoraCabeca": [
+      47,
+      0
+    ],
+    "ancoraMao": [
+      81,
+      74
+    ]
+  },
+  {
+    "id": "anp-6",
+    "nome": "Águia",
+    "tipo": "personagem",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "82x128",
+    "arquivo": "/sprites/personagens/anp-6-aguia.png",
+    "kb": 1.4,
+    "ancoraCabeca": [
+      41,
+      0
+    ],
+    "ancoraMao": [
+      71,
+      74
+    ]
+  },
+  {
+    "id": "atl-1",
+    "nome": "Camisa 10",
+    "tipo": "atleta",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "112x128",
+    "arquivo": "/sprites/personagens/atl-1-camisa-10.png",
+    "kb": 2.3,
+    "ancoraCabeca": [
+      56,
+      0
+    ],
+    "ancoraMao": [
+      96,
+      74
+    ]
+  },
+  {
+    "id": "atl-2",
+    "nome": "Lenda do Garrafão",
+    "tipo": "atleta",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "109x128",
+    "arquivo": "/sprites/personagens/atl-2-lenda-do-garrafao.png",
+    "kb": 2.3,
+    "ancoraCabeca": [
+      55,
+      0
+    ],
+    "ancoraMao": [
+      94,
+      74
+    ]
+  },
+  {
+    "id": "atl-3",
+    "nome": "Rei da Quadra",
+    "tipo": "atleta",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "114x128",
+    "arquivo": "/sprites/personagens/atl-3-rei-da-quadra.png",
+    "kb": 2.5,
+    "ancoraCabeca": [
+      57,
+      0
+    ],
+    "ancoraMao": [
+      98,
+      74
+    ]
+  },
+  {
+    "id": "atl-4",
+    "nome": "Cabeceador",
+    "tipo": "atleta",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "114x128",
+    "arquivo": "/sprites/personagens/atl-4-cabeceador.png",
+    "kb": 2.2,
+    "ancoraCabeca": [
+      57,
+      0
+    ],
+    "ancoraMao": [
+      98,
+      74
+    ]
+  },
+  {
+    "id": "atl-5",
+    "nome": "Sorriso Craque",
+    "tipo": "atleta",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 4,
+    "saida": "109x128",
+    "arquivo": "/sprites/personagens/atl-5-sorriso-craque.png",
+    "kb": 2.5,
+    "ancoraCabeca": [
+      55,
+      0
+    ],
+    "ancoraMao": [
+      94,
+      74
+    ]
+  },
+  {
+    "id": "cen-4",
+    "nome": "Aura de Fogo",
+    "tipo": "cenario",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 19,
+    "saida": "95x94",
+    "arquivo": "/sprites/cenarios/cen-4-aura-de-fogo.png",
+    "kb": 1.6
+  },
+  {
+    "id": "cen-1",
+    "nome": "Pedestal de Madeira",
+    "tipo": "cenario",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "95x57",
+    "arquivo": "/sprites/cenarios/cen-1-pedestal-de-madeira.png",
+    "kb": 0.8
+  },
+  {
+    "id": "cen-10",
+    "nome": "Moldura Lendária",
+    "tipo": "cenario",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 21,
+    "saida": "96x96",
+    "arquivo": "/sprites/cenarios/cen-10-moldura-lendaria.png",
+    "kb": 1.9
+  },
+  {
+    "id": "cen-7",
+    "nome": "Chuva de Estrelas",
+    "tipo": "cenario",
+    "ilhas": 31,
+    "grupos": 1,
+    "bloco": 21,
+    "saida": "94x78",
+    "arquivo": "/sprites/cenarios/cen-7-chuva-de-estrelas.png",
+    "kb": 0.8
+  },
+  {
+    "id": "cen-5",
+    "nome": "Aura de Gelo",
+    "tipo": "cenario",
+    "ilhas": 20,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "97x91",
+    "arquivo": "/sprites/cenarios/cen-5-aura-de-gelo.png",
+    "kb": 2.1
+  },
+  {
+    "id": "cen-3",
+    "nome": "Pedestal de Ouro",
+    "tipo": "cenario",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "128x119",
+    "arquivo": "/sprites/cenarios/cen-3-pedestal-de-ouro.png",
+    "kb": 2.8
+  },
+  {
+    "id": "cen-6",
+    "nome": "Aura Elétrica",
+    "tipo": "cenario",
+    "ilhas": 35,
+    "grupos": 1,
+    "bloco": 19,
+    "saida": "95x97",
+    "arquivo": "/sprites/cenarios/cen-6-aura-eletrica.png",
+    "kb": 1.7
+  },
+  {
+    "id": "cen-2",
+    "nome": "Pedestal de Pedra",
+    "tipo": "cenario",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "100x128",
+    "arquivo": "/sprites/cenarios/cen-2-pedestal-de-pedra.png",
+    "kb": 1.7
+  },
+  {
+    "id": "fun-1",
+    "nome": "Portal Celeste",
+    "tipo": "fundo",
+    "bloco": 21,
+    "saida": "98x98",
+    "arquivo": "/sprites/fundos/fun-1-portal-celeste.png",
+    "kb": 3.4
+  },
+  {
+    "id": "fun-2",
+    "nome": "Caverna de Lava",
+    "tipo": "fundo",
+    "bloco": 21,
+    "saida": "98x98",
+    "arquivo": "/sprites/fundos/fun-2-caverna-de-lava.png",
+    "kb": 4.2
+  },
+  {
+    "id": "fun-3",
+    "nome": "Ruínas Douradas",
+    "tipo": "fundo",
+    "bloco": 21,
+    "saida": "98x98",
+    "arquivo": "/sprites/fundos/fun-3-ruinas-douradas.png",
+    "kb": 4.2
+  },
+  {
+    "id": "fun-4",
+    "nome": "Bosque Encantado",
+    "tipo": "fundo",
+    "bloco": 21,
+    "saida": "98x98",
+    "arquivo": "/sprites/fundos/fun-4-bosque-encantado.png",
+    "kb": 3.9
+  },
+  {
+    "id": "ace-14",
+    "nome": "Raio",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "40x96",
+    "arquivo": "/sprites/itens/ace-14-raio.png",
+    "kb": 0.4
+  },
+  {
+    "id": "ace-15",
+    "nome": "Capa",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "94x72",
+    "arquivo": "/sprites/itens/ace-15-capa.png",
+    "kb": 1.7
+  },
+  {
+    "id": "ace-3",
+    "nome": "Capacete Viking",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 18,
+    "saida": "96x83",
+    "arquivo": "/sprites/itens/ace-3-capacete-viking.png",
+    "kb": 1.6
+  },
+  {
+    "id": "ace-2",
+    "nome": "Chapéu de Mago",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 17,
+    "saida": "96x81",
+    "arquivo": "/sprites/itens/ace-2-chapeu-de-mago.png",
+    "kb": 0.9
+  },
+  {
+    "id": "ace-1",
+    "nome": "Coroa",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 20,
+    "saida": "96x66",
+    "arquivo": "/sprites/itens/ace-1-coroa.png",
+    "kb": 1.2
+  },
+  {
+    "id": "ace-10",
+    "nome": "Cajado",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "23x96",
+    "arquivo": "/sprites/itens/ace-10-cajado.png",
+    "kb": 0.7
+  },
+  {
+    "id": "ace-11",
+    "nome": "Martelo",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "62x96",
+    "arquivo": "/sprites/itens/ace-11-martelo.png",
+    "kb": 0.7
+  },
+  {
+    "id": "ace-12",
+    "nome": "Espada de Raio",
+    "tipo": "item",
+    "ilhas": 1,
+    "grupos": 1,
+    "bloco": 4,
+    "saida": "79x96",
+    "arquivo": "/sprites/itens/ace-12-espada-de-raio.png",
+    "kb": 0.9
+  },
+  {
+    "id": "ace-16",
+    "nome": "Asas",
+    "tipo": "item",
+    "ilhas": 2,
+    "grupos": 2,
+    "bloco": 20,
+    "saida": "96x78",
+    "arquivo": "/sprites/itens/ace-16-asas.png",
+    "kb": 1.8
+  }
+]

@@ -8,10 +8,14 @@ import { TourGuiado } from '@/components/tour/TourGuiado'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { usePerfil, type Perfil } from '@/hooks/usePerfil'
+import { pecasDoSlot } from '@/lib/catalogo'
 import { estaInstalado } from '@/lib/push'
-import { BASES } from '@/lib/sprites'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+
+/** Primeira escolha e de graca, entao a grade mostra so o degrau inicial do
+ *  catalogo. O resto do elenco fica na loja, comprado com ouro. */
+const INICIAIS = pecasDoSlot('personagem').filter((p) => p.custo <= 200)
 
 export function Onboarding() {
   const [passo, setPasso] = useState(0)
@@ -111,18 +115,19 @@ function FormularioPersonagem({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        {Object.keys(BASES).map((id) => (
+        {INICIAIS.map((p) => (
           <button
-            key={id}
+            key={p.id}
             type="button"
-            onClick={() => setBase(id)}
-            aria-pressed={base === id}
+            onClick={() => setBase(p.id)}
+            aria-label={p.nome}
+            aria-pressed={base === p.id}
             className={cn(
               'flex items-center justify-center rounded-lg border-2 bg-card py-3',
-              base === id ? 'border-primary' : 'border-border',
+              base === p.id ? 'border-primary' : 'border-border',
             )}
           >
-            <Avatar base={id} tamanho={48} />
+            <Avatar base={p.id} tamanho={48} />
           </button>
         ))}
       </div>

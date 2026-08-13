@@ -20,6 +20,8 @@ export interface OcorrenciaHoje {
   lembrete: string | null
   grupoId: string | null
   grupoNome: string | null
+  /** Dono do grupo. So ele pode excluir a rotina de grupo. Null em rotina individual. */
+  grupoDonoId: string | null
   streak: number
   feitosNoGrupo: number
   totalGrupo: number
@@ -41,7 +43,7 @@ interface LinhaOcorrencia {
     regra_frequencia: RegraFrequencia
     lembrete_hora: string | null
     group_id: string | null
-    groups: { nome: string } | null
+    groups: { nome: string; dono_id: string } | null
   }
 }
 
@@ -58,7 +60,7 @@ export function useOcorrenciasHoje() {
         .select(
           `id, data_sp, vence_em, status, vezes_feitas, vezes_alvo, foto_path,
            habits!inner ( id, titulo, icone, ouro_base, regra_frequencia, lembrete_hora,
-                          group_id, groups ( nome ) )`,
+                          group_id, groups ( nome, dono_id ) )`,
         )
         .eq('user_id', usuarioId!)
         .eq('data_sp', hoje)
@@ -114,6 +116,7 @@ export function useOcorrenciasHoje() {
             lembrete: l.habits.lembrete_hora,
             grupoId: l.habits.group_id,
             grupoNome: l.habits.groups?.nome ?? null,
+            grupoDonoId: l.habits.groups?.dono_id ?? null,
             streak: porHabito.get(l.habits.id) ?? 0,
             feitosNoGrupo: p.feitos,
             totalGrupo: p.total,

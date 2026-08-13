@@ -56,12 +56,20 @@ export default {
           '0%, 100%': { transform: 'translate(-50%, -50%) rotate(-6deg)' },
           '50%': { transform: 'translate(-50%, -50%) rotate(6deg)' },
         },
+        /* Uma fatia do giro do baú. Fica visível só durante a própria fatia:
+           antes do delay a classe `opacity-0` manda, depois o `forwards`
+           segura o 100%. Assim as fatias se revezam sem nenhum timer em JS. */
+        giro: {
+          '0%, 99%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         bob: 'bob 2.6s ease-in-out infinite',
         pulo: 'pulo 0.6s cubic-bezier(0.33, 1, 0.68, 1) 1',
         pulso: 'pulso 1.8s ease-out infinite',
         balanco: 'balanco 2.8s ease-in-out infinite',
+        giro: 'giro 0.1s linear 1 forwards',
       },
     },
   },

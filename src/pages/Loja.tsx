@@ -6,8 +6,9 @@ import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { Folha } from '@/components/ui/Folha'
-import { usePerfil } from '@/hooks/usePerfil'
+import { type Perfil, usePerfil } from '@/hooks/usePerfil'
 import { useSessao } from '@/hooks/useSessao'
+import { POR_ID, type Slot } from '@/lib/catalogo'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ interface Premio {
 interface ItemLoja {
   id: string
   nome: string
+  slot: Slot
   custo_ouro: number
   possui: boolean
 }
@@ -43,7 +45,7 @@ export function Loja() {
       </header>
 
       <Premios ouro={ouro} aoCriar={() => setCriando(true)} criando={criando} setCriando={setCriando} />
-      <Itens ouro={ouro} perfil={perfil} />
+      <Colecao ouro={ouro} perfil={perfil} />
     </section>
   )
 }
@@ -233,25 +235,51 @@ function Premios({
   )
 }
 
-function Itens({ ouro, perfil }: { ouro: number; perfil: { avatar_base: string; item_equipado: string | null } | undefined }) {
+const PRATELEIRAS: { slot: Slot; rotulo: string }[] = [
+  { slot: 'personagem', rotulo: 'Personagens' },
+  { slot: 'acessorio', rotulo: 'Acessórios' },
+  { slot: 'cenario', rotulo: 'Cenários' },
+  { slot: 'fundo', rotulo: 'Fundos' },
+]
+
+/**
+ * Coleção: personagem, acessório, cenário e fundo de perfil.
+ *
+ * O preço e o que existe à venda saem do banco, sempre. O catálogo local só
+ * diz onde está o PNG e a que família a peça pertence. Se a peça estiver no
+ * banco e não no catálogo, ela simplesmente não aparece, em vez de virar um
+ * cartão quebrado.
+ */
+function Colecao({ ouro, perfil }: { ouro: number; perfil: Perfil | undefined }) {
   const cliente = useQueryClient()
   const { usuarioId } = useSessao()
   const [erro, setErro] = useState<string | null>(null)
+  const [aba, setAba] = useState<Slot>('personagem')
 
-  const { data: itens } = useQuery({
+  const { data: itens, isPending, isError, refetch } = useQuery({
     queryKey: ['itens', usuarioId],
     enabled: Boolean(usuarioId),
     queryFn: async (): Promise<ItemLoja[]> => {
       const [catalogo, meus] = await Promise.all([
-        supabase.from('avatar_items').select('id, nome, custo_ouro').order('custo_ouro'),
+        supabase.from('avatar_items').select('id, nome, slot, custo_ouro').eq('ativo', true),
         supabase.from('owned_items').select('item_id'),
       ])
       if (catalogo.error) throw catalogo.error
       if (meus.error) throw meus.error
       const possuidos = new Set((meus.data ?? []).map((m) => m.item_id))
-      return (catalogo.data ?? []).map((i) => ({ ...i, possui: possuidos.has(i.id) }))
+      return (catalogo.data ?? [])
+        .filter((i) => POR_ID.has(i.id))
+        .map((i) => ({ ...i, slot: i.slot as Slot, possui: possuidos.has(i.id) }))
+        .sort((a, b) => a.custo_ouro - b.custo_ouro)
     },
   })
+
+  const invalidar = () => {
+    setErro(null)
+    cliente.invalidateQueries({ queryKey: ['itens'] })
+    cliente.invalidateQueries({ queryKey: ['perfil'] })
+    cliente.invalidateQueries({ queryKey: ['grupo'] })
+  }
 
   const comprar = useMutation({
     mutationFn: async (id: string) => {
@@ -260,74 +288,167 @@ function Itens({ ouro, perfil }: { ouro: number; perfil: { avatar_base: string; 
       if (data?.error === 'ouro_insuficiente') throw new Error('Ouro insuficiente.')
       if (data?.error) throw new Error('Não deu para comprar agora.')
     },
-    onSuccess: () => {
-      setErro(null)
-      cliente.invalidateQueries({ queryKey: ['itens'] })
-      cliente.invalidateQueries({ queryKey: ['perfil'] })
-    },
+    onSuccess: invalidar,
     onError: (e: Error) => setErro(e.message),
   })
 
   const equipar = useMutation({
-    mutationFn: async (id: string | null) => {
-      const { data, error } = await supabase.rpc('equipar_item', { p_item: id })
+    mutationFn: async ({ id, slot }: { id: string | null; slot: Slot }) => {
+      const { data, error } = await supabase.rpc('equipar_item', { p_item: id, p_slot: slot })
       if (error) throw error
+      if (data?.error === 'ouro_insuficiente') throw new Error('Ouro insuficiente.')
       if (data?.error) throw new Error('Não deu para equipar agora.')
     },
-    onSuccess: () => cliente.invalidateQueries({ queryKey: ['perfil'] }),
+    onSuccess: invalidar,
     onError: (e: Error) => setErro(e.message),
   })
 
+  const equipadoNoSlot = (slot: Slot) =>
+    slot === 'personagem' ? perfil?.avatar_base
+      : slot === 'acessorio' ? perfil?.item_equipado
+      : slot === 'cenario' ? perfil?.cenario_equipado
+      : perfil?.fundo_equipado
+
+  const daAba = (itens ?? []).filter((i) => i.slot === aba)
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Itens do personagem
+        Sua coleção
       </h2>
 
+      {/* Rolagem horizontal fica presa aqui dentro: a pagina nunca rola de lado. */}
+      <div className="-mx-4 overflow-x-auto px-4">
+        <div role="tablist" className="flex w-max gap-2">
+          {PRATELEIRAS.map((p) => {
+            const total = (itens ?? []).filter((i) => i.slot === p.slot).length
+            return (
+              <button
+                key={p.slot}
+                type="button"
+                role="tab"
+                aria-selected={aba === p.slot}
+                onClick={() => setAba(p.slot)}
+                className={cn(
+                  'h-10 shrink-0 rounded-lg border px-3.5 text-sm font-medium transition-colors',
+                  aba === p.slot
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-card text-muted-foreground hover:bg-accent',
+                )}
+              >
+                {p.rotulo}
+                <span className="ml-1.5 tabular-nums opacity-70">{total}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {isPending && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+      {isError && <EstadoErro mensagem="Não deu para carregar a coleção." aoTentarDeNovo={refetch} />}
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 
       <ul className="grid grid-cols-2 gap-2">
-        {(itens ?? []).map((item) => {
-          const equipado = perfil?.item_equipado === item.id
-          const pode = ouro >= item.custo_ouro
-          return (
-            <li
-              key={item.id}
-              className={cn(
-                'flex flex-col items-center gap-2 rounded-xl border bg-card p-3 shadow-sm',
-                equipado ? 'border-primary' : 'border-border',
-              )}
-            >
-              <Avatar base={perfil?.avatar_base} item={item.id} tamanho={64} />
-              <span className="text-center text-sm font-medium leading-tight">{item.nome}</span>
-
-              {!item.possui && (
-                <Botao
-                  variante={pode ? 'primario' : 'secundario'}
-                  disabled={!pode}
-                  carregando={comprar.isPending && comprar.variables === item.id}
-                  className="w-full"
-                  onClick={() => comprar.mutate(item.id)}
-                >
-                  <Coins className="size-4" />
-                  {item.custo_ouro}
-                </Botao>
-              )}
-
-              {item.possui && (
-                <Botao
-                  variante={equipado ? 'secundario' : 'primario'}
-                  className="w-full"
-                  carregando={equipar.isPending && equipar.variables === item.id}
-                  onClick={() => equipar.mutate(equipado ? null : item.id)}
-                >
-                  {equipado ? 'Tirar' : 'Equipar'}
-                </Botao>
-              )}
-            </li>
-          )
-        })}
+        {daAba.map((item) => (
+          <CartaoPeca
+            key={item.id}
+            item={item}
+            perfil={perfil}
+            equipado={equipadoNoSlot(item.slot) === item.id}
+            ouro={ouro}
+            ocupado={
+              (comprar.isPending && comprar.variables === item.id) ||
+              (equipar.isPending && equipar.variables?.id === item.id)
+            }
+            aoComprar={() =>
+              item.slot === 'personagem'
+                ? equipar.mutate({ id: item.id, slot: 'personagem' })
+                : comprar.mutate(item.id)
+            }
+            aoEquipar={(tirar) =>
+              equipar.mutate({ id: tirar ? null : item.id, slot: item.slot })
+            }
+          />
+        ))}
       </ul>
     </div>
+  )
+}
+
+function CartaoPeca({
+  item,
+  perfil,
+  equipado,
+  ouro,
+  ocupado,
+  aoComprar,
+  aoEquipar,
+}: {
+  item: ItemLoja
+  perfil: Perfil | undefined
+  equipado: boolean
+  ouro: number
+  ocupado: boolean
+  aoComprar: () => void
+  aoEquipar: (tirar: boolean) => void
+}) {
+  const peca = POR_ID.get(item.id)
+  const pode = ouro >= item.custo_ouro
+  // Personagem não tem botão de tirar: sempre existe um vestido.
+  const podeTirar = equipado && item.slot !== 'personagem'
+
+  return (
+    <li
+      className={cn(
+        'flex flex-col items-center gap-2 rounded-xl border bg-card p-3 shadow-sm',
+        equipado ? 'border-primary' : 'border-border',
+      )}
+    >
+      <span className="flex h-20 items-end justify-center">
+        {item.slot === 'personagem' ? (
+          <Avatar base={item.id} tamanho={76} />
+        ) : item.slot === 'acessorio' ? (
+          <Avatar base={perfil?.avatar_base} item={item.id} tamanho={76} />
+        ) : (
+          <img
+            src={peca?.arquivo}
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="size-20 object-contain [image-rendering:pixelated]"
+          />
+        )}
+      </span>
+
+      <span className="text-center text-sm font-medium leading-tight">{item.nome}</span>
+      {peca && item.slot === 'personagem' && (
+        <span className="text-center text-xs text-muted-foreground">{peca.familia}</span>
+      )}
+
+      {!item.possui && (
+        <Botao
+          variante={pode ? 'primario' : 'secundario'}
+          disabled={!pode}
+          carregando={ocupado}
+          className="w-full"
+          onClick={aoComprar}
+        >
+          <Coins className="size-4" />
+          {item.custo_ouro}
+        </Botao>
+      )}
+
+      {item.possui && (
+        <Botao
+          variante={equipado ? 'secundario' : 'primario'}
+          className="w-full"
+          disabled={equipado && !podeTirar}
+          carregando={ocupado}
+          onClick={() => aoEquipar(podeTirar)}
+        >
+          {equipado ? (podeTirar ? 'Tirar' : 'Vestido') : 'Vestir'}
+        </Botao>
+      )}
+    </li>
   )
 }

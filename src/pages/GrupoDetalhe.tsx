@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { FotoCapaGrupo } from '@/components/grupos/FotoCapaGrupo'
 import { PlacarHoje, Ranking } from '@/components/grupos/Ranking'
+import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { Botao } from '@/components/ui/Botao'
 import { EstadoErro } from '@/components/ui/EstadoErro'
@@ -111,6 +112,10 @@ export function GrupoDetalhe() {
                 </span>
                 <span className="min-w-0 flex-1 truncate font-medium">{d.titulo}</span>
                 <span className="shrink-0 text-sm text-muted-foreground">{d.ouroBase} ouro</span>
+                {/* So o dono do grupo apaga um desafio: ele some para todo mundo. */}
+                {grupo.donoId === usuarioId && (
+                  <ExcluirRotina habitId={d.id} titulo={d.titulo} deGrupo compacto />
+                )}
               </li>
             )
           })}

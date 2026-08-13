@@ -135,6 +135,7 @@ function ItemPodio({
         <Avatar
           base={membro.avatarBase}
           item={membro.itemEquipado}
+          cenario={membro.cenarioEquipado}
           tamanho={primeiro ? 72 : 52}
         />
       </span>
@@ -181,7 +182,12 @@ function LinhaRanking({
       >
         {posicao}º
       </span>
-      <Avatar base={membro.avatarBase} item={membro.itemEquipado} tamanho={40} />
+      <Avatar
+        base={membro.avatarBase}
+        item={membro.itemEquipado}
+        cenario={membro.cenarioEquipado}
+        tamanho={40}
+      />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="min-w-0 truncate font-medium">{membro.nome}</span>

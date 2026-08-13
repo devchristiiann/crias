@@ -49,7 +49,12 @@ export function BottomNav() {
               )
             }
           >
-            <Avatar base={perfil?.avatar_base} item={perfil?.item_equipado} tamanho={40} />
+            <Avatar
+              base={perfil?.avatar_base}
+              item={perfil?.item_equipado}
+              cenario={perfil?.cenario_equipado}
+              tamanho={40}
+            />
           </NavLink>
         </li>
 

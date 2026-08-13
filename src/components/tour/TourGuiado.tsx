@@ -2,7 +2,7 @@ import { CalendarCheck, Check, Coins, Settings, Store, Users } from 'lucide-reac
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { usePerfil } from '@/hooks/usePerfil'
-import { BASES } from '@/lib/sprites'
+import { pecasDoSlot } from '@/lib/catalogo'
 import { cn } from '@/lib/utils'
 
 type Aba = 'hoje' | 'grupos' | 'trilha' | 'loja'
@@ -24,7 +24,17 @@ const ABAS_DIREITA = [
   { aba: 'ajustes', rotulo: 'Ajustes', Icone: Settings },
 ] as const
 
-const TRES_BASES = Object.keys(BASES).slice(0, 3)
+/** Tres bonecos quaisquer, so para a maquete de grupo ter gente dentro. */
+const TRES_BASES = pecasDoSlot('personagem')
+  .slice(0, 3)
+  .map((p) => p.id)
+
+/** Vitrine de mentira da maquete da loja. Ids do catalogo de verdade, senao a
+ *  camada de acessorio nao acha o arquivo e o quadro sai vazio. */
+const DOIS_PREMIOS = [
+  { item: 'ace-2', nome: 'Chapéu', preco: 250 },
+  { item: 'ace-3', nome: 'Capacete', preco: 250 },
+]
 
 /**
  * Tour do onboarding: mostra uma maquete das telas, nao a tela real.
@@ -78,7 +88,12 @@ export function TourGuiado({ aoConcluir }: { aoConcluir: () => void }) {
                   tela.aba === 'trilha' && 'z-20 ring-primary',
                 )}
               >
-                <Avatar base={perfil?.avatar_base} item={perfil?.item_equipado} tamanho={36} />
+                <Avatar
+                  base={perfil?.avatar_base}
+                  item={perfil?.item_equipado}
+                  cenario={perfil?.cenario_equipado}
+                  tamanho={36}
+                />
               </span>
             </div>
 
@@ -203,10 +218,7 @@ function ConteudoDaTela({ aba, base }: { aba: Aba; base?: string | null }) {
 
   return (
     <ul className="grid grid-cols-2 gap-1.5">
-      {[
-        { item: 'item-01', nome: 'Chapéu', preco: 120 },
-        { item: 'item-10', nome: 'Óculos', preco: 80 },
-      ].map((premio) => (
+      {DOIS_PREMIOS.map((premio) => (
         <li
           key={premio.item}
           className="flex flex-col items-center gap-1 rounded-lg border border-border bg-card px-2 py-2 text-xs"
