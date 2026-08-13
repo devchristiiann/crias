@@ -166,7 +166,10 @@ export function Trilha({
                 {no.estado === 'atual' && (
                   <span
                     aria-hidden="true"
-                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary opacity-0 motion-safe:animate-pulso"
+                    className={cn(
+                      'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 opacity-0 motion-safe:animate-pulso',
+                      bau ? 'border-warning' : 'border-primary',
+                    )}
                     style={{ left: x, top: y, width: lado, height: lado }}
                   />
                 )}
