@@ -45,9 +45,19 @@ export function Grupos() {
               className="flex items-center gap-3 rounded-xl border border-border bg-card p-3
                          shadow-sm transition-colors hover:bg-accent"
             >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Users className="size-5" />
-              </span>
+              {/* Sem capa o card mantem o mesmo quadrado do icone, entao a lista
+                  nao muda de altura de uma linha para a outra. */}
+              {g.fotoUrl ? (
+                <img
+                  src={g.fotoUrl}
+                  alt=""
+                  className="size-11 shrink-0 rounded-lg object-cover"
+                />
+              ) : (
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Users className="size-5" />
+                </span>
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{g.nome}</span>
                 <span className="block text-xs text-muted-foreground">

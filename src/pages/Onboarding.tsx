@@ -79,11 +79,18 @@ function FormularioPersonagem({
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ nome: nome.trim(), avatar_base: base })
-        .eq('id', perfil.id)
+      // avatar_base nao e mais escrita direta do cliente: a coluna perdeu o
+      // privilegio de update para que a troca sempre passe pela RPC, que cobra
+      // ouro. Esta aqui e a primeira escolha, e a RPC nao cobra por ela.
+      const { data, error } = await supabase.rpc('trocar_personagem', { p_base: base })
       if (error) throw error
+      if (data?.error) throw new Error(data.error)
+
+      const { error: erroNome } = await supabase
+        .from('profiles')
+        .update({ nome: nome.trim() })
+        .eq('id', perfil.id)
+      if (erroNome) throw erroNome
     },
     onSuccess: () => {
       cliente.invalidateQueries({ queryKey: ['perfil'] })

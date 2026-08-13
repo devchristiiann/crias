@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, Copy, Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { FotoCapaGrupo } from '@/components/grupos/FotoCapaGrupo'
 import { PlacarHoje, Ranking } from '@/components/grupos/Ranking'
 import { FormularioHabito } from '@/components/habito/FormularioHabito'
 import { Botao } from '@/components/ui/Botao'
@@ -54,6 +55,13 @@ export function GrupoDetalhe() {
         <ArrowLeft className="size-4" />
         Grupos
       </Link>
+
+      <FotoCapaGrupo
+        grupoId={grupo.id}
+        nome={grupo.nome}
+        fotoUrl={grupo.fotoUrl}
+        ehDono={grupo.donoId === usuarioId}
+      />
 
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{grupo.nome}</h1>

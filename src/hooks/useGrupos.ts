@@ -15,6 +15,33 @@ function porOfensiva(
   return b.streakTotal - a.streakTotal || a.nome.localeCompare(b.nome, 'pt-BR')
 }
 
+/**
+ * Validade da URL assinada da capa. Curta porque o bucket e privado e o link
+ * assinado vale para quem o tiver em maos, mas maior que o cache da consulta,
+ * senao a imagem quebra na tela sem nenhuma nova busca acontecer.
+ */
+const SEGUNDOS_URL_CAPA = 600
+
+/**
+ * Assina em lote. Uma lista de dez grupos com uma chamada por card sao dez idas
+ * ao servidor antes da primeira imagem aparecer.
+ */
+async function assinarCapas(caminhos: string[]): Promise<Map<string, string>> {
+  const url = new Map<string, string>()
+  if (caminhos.length === 0) return url
+
+  const { data, error } = await supabase.storage
+    .from('grupos')
+    .createSignedUrls(caminhos, SEGUNDOS_URL_CAPA)
+  // Capa e enfeite: falhar aqui nao pode derrubar a lista de grupos.
+  if (error) return url
+
+  for (const item of data ?? []) {
+    if (item.signedUrl && item.path) url.set(item.path, item.signedUrl)
+  }
+  return url
+}
+
 export interface ResumoGrupo {
   id: string
   nome: string
@@ -23,12 +50,15 @@ export interface ResumoGrupo {
   desafios: number
   /** Posicao do usuario no ranking do grupo. Null se ele nao aparecer na lista. */
   posicao: number | null
+  /** URL assinada da capa. Null quando o grupo nao tem foto. */
+  fotoUrl: string | null
 }
 
 interface LinhaGrupoLista {
   id: string
   nome: string
   codigo_convite: string
+  foto_path: string | null
   group_members: { user_id: string; profiles: { nome: string } | null }[] | null
   habits: { id: string; streaks: { user_id: string; atual: number }[] | null }[] | null
 }
@@ -47,7 +77,7 @@ export function useGrupos() {
       const { data, error } = await supabase
         .from('groups')
         .select(
-          'id, nome, codigo_convite, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
+          'id, nome, codigo_convite, foto_path, group_members(user_id, profiles(nome)), habits(id, streaks(user_id, atual))',
         )
         .eq('habits.ativo', true)
         .order('criado_em', { ascending: true })
@@ -56,6 +86,10 @@ export function useGrupos() {
       // O PostgREST devolve o relacionamento para um so como objeto, mas sem os
       // tipos gerados o TypeScript infere array. O cast fica aqui, na fronteira.
       const linhas = (data ?? []) as unknown as LinhaGrupoLista[]
+
+      const capas = await assinarCapas(
+        linhas.map((g) => g.foto_path).filter((c): c is string => Boolean(c)),
+      )
 
       return linhas.map((g) => {
         const membros = g.group_members ?? []
@@ -85,6 +119,7 @@ export function useGrupos() {
           membros: membros.length,
           desafios: desafios.length,
           posicao: indice >= 0 ? indice + 1 : null,
+          fotoUrl: (g.foto_path && capas.get(g.foto_path)) || null,
         }
       })
     },
@@ -115,6 +150,8 @@ export interface DetalheGrupo {
   nome: string
   codigo: string
   donoId: string
+  /** URL assinada da capa. Null quando o grupo nao tem foto. */
+  fotoUrl: string | null
   membros: MembroGrupo[]
   desafios: { id: string; titulo: string; icone: string; ouroBase: number }[]
   feed: { id: string; usuarioId: string; titulo: string; feitoEm: string }[]
@@ -130,7 +167,7 @@ export function useGrupo(grupoId: string | undefined) {
         supabase
           .from('groups')
           .select(
-            'id, nome, codigo_convite, dono_id, group_members(user_id, profiles(id, nome, avatar_base, item_equipado))',
+            'id, nome, codigo_convite, dono_id, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado))',
           )
           .eq('id', grupoId!)
           .single(),
@@ -193,6 +230,8 @@ export function useGrupo(grupoId: string | undefined) {
         }
       }
 
+      const capas = await assinarCapas(grupo.foto_path ? [grupo.foto_path] : [])
+
       const linhasMembro = (grupo.group_members ?? []) as unknown as LinhaMembro[]
 
       const membros: MembroGrupo[] = linhasMembro
@@ -216,6 +255,7 @@ export function useGrupo(grupoId: string | undefined) {
         nome: grupo.nome,
         codigo: grupo.codigo_convite,
         donoId: grupo.dono_id,
+        fotoUrl: (grupo.foto_path && capas.get(grupo.foto_path)) || null,
         membros,
         desafios: (desafios ?? []).map((d) => ({
           id: d.id,

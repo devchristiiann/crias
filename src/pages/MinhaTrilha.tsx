@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Coins, Loader2, Palette } from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '@/components/Avatar'
@@ -14,9 +14,31 @@ import { BASES } from '@/lib/sprites'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
+/** O que a troca custa e se a primeira escolha ainda esta de pe. Vem do
+ *  servidor: preco de jogo nao pode ser numero cravado na tela. */
+interface InfoPersonagem {
+  custo: number
+  gratis: boolean
+  ouro: number
+  base: string
+}
+
+function useInfoPersonagem(usuarioId: string | undefined) {
+  return useQuery({
+    queryKey: ['personagem', usuarioId],
+    enabled: Boolean(usuarioId),
+    queryFn: async (): Promise<InfoPersonagem> => {
+      const { data, error } = await supabase.rpc('info_personagem')
+      if (error) throw error
+      return data as InfoPersonagem
+    },
+  })
+}
+
 export function MinhaTrilha() {
   const { data: perfil, isPending, isError, refetch } = usePerfil()
   const { data: trilha } = useTrilha()
+  const { data: info } = useInfoPersonagem(perfil?.id)
   const [trocandoAparencia, setTrocandoAparencia] = useState(false)
 
   if (isPending) {
@@ -58,13 +80,23 @@ export function MinhaTrilha() {
         <BarraVida vida={perfil.vida} />
       </div>
 
+      {/* O preco aparece no proprio botao: ninguem abre a folha sem saber que a
+          troca tem custo. */}
       <Botao
         variante="secundario"
         className="w-full justify-between"
         onClick={() => setTrocandoAparencia(true)}
       >
-        Trocar personagem
-        <Palette className="size-4" />
+        <span className="flex items-center gap-2">
+          <Palette className="size-4" />
+          Trocar personagem
+        </span>
+        {info && !info.gratis && (
+          <span className="flex items-center gap-1.5 font-semibold text-warning">
+            <Coins className="size-4" />
+            {info.custo}
+          </span>
+        )}
       </Botao>
 
       <CalendarioOfensiva diasProdutivos={dias} />
@@ -74,6 +106,8 @@ export function MinhaTrilha() {
         aoFechar={() => setTrocandoAparencia(false)}
         baseAtual={perfil.avatar_base}
         itemEquipado={perfil.item_equipado}
+        info={info}
+        ouro={perfil.ouro}
       />
     </section>
   )
@@ -84,41 +118,64 @@ export function MinhaTrilha() {
  *
  * Antes a escolha acontecia uma vez so, no cadastro, e ficava travada para
  * sempre: quem se arrependia nao tinha caminho nenhum de volta.
+ *
+ * Hoje custa ouro, entao tocar no personagem apenas seleciona: quem debita e o
+ * botao de confirmar, que carrega o preco escrito. Cobrar no toque da grade
+ * tirava ouro de quem so estava olhando as opcoes.
  */
 function FolhaAparencia({
   aberta,
   aoFechar,
   baseAtual,
   itemEquipado,
+  info,
+  ouro,
 }: {
   aberta: boolean
   aoFechar: () => void
   baseAtual: string
   itemEquipado: string | null
+  info: InfoPersonagem | undefined
+  /** Vem do perfil, nao da consulta de preco: e o mesmo numero do topo da tela
+   *  e do menu, e duas fontes de ouro na mesma folha divergem na hora errada. */
+  ouro: number
 }) {
   const cliente = useQueryClient()
   const [erro, setErro] = useState<string | null>(null)
+  const [escolhida, setEscolhida] = useState(baseAtual)
 
   const trocar = useMutation({
     mutationFn: async (base: string) => {
-      const { data: sessao } = await supabase.auth.getUser()
-      if (!sessao.user) throw new Error('sem sessão')
-      const { error } = await supabase
-        .from('profiles')
-        .update({ avatar_base: base })
-        .eq('id', sessao.user.id)
+      const { data, error } = await supabase.rpc('trocar_personagem', { p_base: base })
       if (error) throw error
+      if (data?.error === 'ouro_insuficiente') {
+        throw new Error(`Ouro insuficiente. A troca custa ${data.custo} de ouro.`)
+      }
+      if (data?.error) throw new Error('Não deu para trocar agora. Tente de novo.')
     },
     onSuccess: () => {
       setErro(null)
       cliente.invalidateQueries({ queryKey: ['perfil'] })
+      cliente.invalidateQueries({ queryKey: ['personagem'] })
       aoFechar()
     },
-    onError: () => setErro('Não deu para trocar agora. Tente de novo.'),
+    onError: (e: Error) => setErro(e.message),
   })
 
+  const custo = info?.gratis ? 0 : (info?.custo ?? null)
+  const mudou = escolhida !== baseAtual
+  const temOuro = custo === null || ouro >= custo
+
+  // Fechar sem confirmar descarta a previa. Sem isso a folha reabre com outro
+  // personagem em destaque e o botao de cobrar ja liberado.
+  function fechar() {
+    setEscolhida(baseAtual)
+    setErro(null)
+    aoFechar()
+  }
+
   return (
-    <Folha aberta={aberta} aoFechar={aoFechar} titulo="Trocar personagem">
+    <Folha aberta={aberta} aoFechar={fechar} titulo="Trocar personagem">
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
           {Object.keys(BASES).map((id) => (
@@ -126,13 +183,11 @@ function FolhaAparencia({
               key={id}
               type="button"
               aria-label={`Personagem ${id.replace('base-', '')}`}
-              aria-pressed={baseAtual === id}
-              disabled={trocar.isPending}
-              onClick={() => trocar.mutate(id)}
+              aria-pressed={escolhida === id}
+              onClick={() => setEscolhida(id)}
               className={cn(
                 'flex min-h-11 items-center justify-center rounded-lg border-2 bg-card py-3',
-                'disabled:opacity-50',
-                baseAtual === id ? 'border-primary' : 'border-border',
+                escolhida === id ? 'border-primary' : 'border-border',
               )}
             >
               <Avatar base={id} item={itemEquipado} tamanho={48} />
@@ -140,11 +195,31 @@ function FolhaAparencia({
           ))}
         </div>
 
+        {info && (
+          <p className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>{custo ? `Custa ${custo} de ouro` : 'Primeira escolha, de graça'}</span>
+            <span className="flex items-center gap-1.5 font-semibold text-warning">
+              <Coins className="size-4" />
+              {ouro}
+            </span>
+          </p>
+        )}
+
         {erro && <p className="text-sm text-destructive">{erro}</p>}
 
-        <p className="text-sm text-muted-foreground">
-          Os acessórios ficam na Loja, comprados com ouro.
-        </p>
+        <Botao
+          tamanho="lg"
+          className="w-full"
+          disabled={!mudou || !temOuro || !info}
+          carregando={trocar.isPending}
+          onClick={() => trocar.mutate(escolhida)}
+        >
+          {!mudou
+            ? 'Escolha outro personagem'
+            : custo
+              ? `Trocar por ${custo} de ouro`
+              : 'Trocar personagem'}
+        </Botao>
       </div>
     </Folha>
   )
