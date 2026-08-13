@@ -13,6 +13,13 @@ export interface OcorrenciaHoje {
   vezes_feitas: number
   vezes_alvo: number
   foto_path: string | null
+  /**
+   * Dia da última marcação, em São Paulo. Só "N vezes por semana" e "N vezes por
+   * mês" olham para isto: a ocorrência cobre a janela inteira e vale uma
+   * marcação por dia. Sem esta coluna o botão prometia "Marcar 2 de 3" e só
+   * descobria `ja_marcado_hoje` no clique.
+   */
+  ultima_marcacao_sp: string | null
   habitId: string
   titulo: string
   icone: string
@@ -42,6 +49,7 @@ interface LinhaOcorrencia {
   vezes_feitas: number
   vezes_alvo: number
   foto_path: string | null
+  ultima_marcacao_sp: string | null
   habits: {
     id: string
     titulo: string
@@ -73,7 +81,7 @@ export function useOcorrenciasHoje() {
       const { data, error } = await supabase
         .from('occurrences')
         .select(
-          `id, data_sp, vence_em, status, vezes_feitas, vezes_alvo, foto_path,
+          `id, data_sp, vence_em, status, vezes_feitas, vezes_alvo, foto_path, ultima_marcacao_sp,
            habits!inner ( id, titulo, icone, ouro_base, regra_frequencia, modulo, config,
                           lembrete_hora, group_id, groups ( nome, dono_id, exige_foto ) )`,
         )
@@ -140,6 +148,7 @@ export function useOcorrenciasHoje() {
             vezes_feitas: l.vezes_feitas,
             vezes_alvo: l.vezes_alvo,
             foto_path: l.foto_path,
+            ultima_marcacao_sp: l.ultima_marcacao_sp,
             habitId: l.habits.id,
             titulo: l.habits.titulo,
             icone: l.habits.icone,

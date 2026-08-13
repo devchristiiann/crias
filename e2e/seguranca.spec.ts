@@ -196,7 +196,33 @@ test.describe.serial('correcoes de seguranca da 0013', () => {
     expect(inventada.status).toBe(200)
     expect(inventada.corpo).toEqual({ error: 'foto_invalida' })
 
-    const caminho = `${idA}/arquivo.webp`
+    // Pasta certa e arquivo existente ainda nao bastam: o segundo segmento tem
+    // que ser a ocorrencia que esta sendo marcada. Sem isso, UMA foto na vida
+    // satisfazia `exige_foto` de qualquer rotina, para sempre.
+    const deOutraOcorrencia = `${idA}/${crypto.randomUUID()}/arquivo.webp`
+    const uploadOutra = await fetch(
+      `${URL_SUPABASE}/storage/v1/object/checkins/${deOutraOcorrencia}`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: ANON,
+          Authorization: `Bearer ${tokenA}`,
+          'Content-Type': 'image/webp',
+          'x-upsert': 'true',
+        },
+        body: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]),
+      },
+    )
+    expect(uploadOutra.status, await uploadOutra.clone().text()).toBe(200)
+
+    const emprestada = await comoUsuario(tokenA, '/rest/v1/rpc/check_in', {
+      method: 'POST',
+      body: { p_occ: ocorrenciaHoje, p_foto: deOutraOcorrencia },
+    })
+    expect(emprestada.status).toBe(200)
+    expect(emprestada.corpo, JSON.stringify(emprestada.corpo)).toEqual({ error: 'foto_invalida' })
+
+    const caminho = `${idA}/${ocorrenciaHoje}/arquivo.webp`
     const upload = await fetch(`${URL_SUPABASE}/storage/v1/object/checkins/${caminho}`, {
       method: 'POST',
       headers: {

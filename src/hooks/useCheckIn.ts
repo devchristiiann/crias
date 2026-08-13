@@ -49,6 +49,13 @@ const ERROS_CHECK_IN: Record<string, string> = {
   // sempre. Nomear o grupo aqui mentiria na metade dos casos.
   foto_obrigatoria: 'Anexe uma foto para concluir esta rotina.',
   foto_invalida: 'Não deu para usar essa foto. Tente outra.',
+  // Só "N vezes por semana" e "N vezes por mês": a ocorrência cobre a janela
+  // inteira e vale uma marcação por dia. Dizer o porquê importa, senão a pessoa
+  // acha que o botão quebrou.
+  ja_marcado_hoje: 'Você já marcou esta rotina hoje. A próxima marcação conta a partir de amanhã.',
+  // Mesma dupla de tipos: passado o domingo, ou o último dia do mês, a janela
+  // fechou e o slot dela não volta.
+  janela_encerrada: 'Este período já fechou. A marcação vale na janela atual.',
   fora_da_faixa: 'A última faixa de horário já passou. Este check-in não conta mais hoje.',
   ocorrencia_futura: 'Este desafio ainda não abriu.',
   ocorrencia_invalida: 'Não encontramos este desafio.',
@@ -79,12 +86,26 @@ export function useCheckIn() {
       let caminho: string | null = null
       let fotoFalhou = false
 
-      if (foto && usuarioId) {
+      if (foto) {
+        // Sem sessão o caminho não teria dono e a foto era descartada em
+        // silêncio, com o check-in seguindo sem a comprovação que a pessoa
+        // anexou. Falhar aqui é a resposta honesta.
+        if (!usuarioId) throw new Error('Sua sessão expirou. Entre de novo para enviar a foto.')
         const comprimida = await comprimirImagem(foto)
-        caminho = `${usuarioId}/${ocorrenciaId}.webp`
+        // `<uid>/<ocorrencia>/<envio>.webp`. A ocorrência é uma PASTA, não parte
+        // do nome do arquivo: é o segundo segmento que o `check_in` confere para
+        // saber que esta foto é deste check-in. Antes bastava reenviar o
+        // `foto_path` de qualquer outra ocorrência para satisfazer `exige_foto`.
+        //
+        // O nome é único por envio, nunca `foto.webp` fixo. Dois motivos: cada
+        // envio vira um objeto novo em `storage.objects`, com data de criação
+        // real, que é o que o `check_in` confere para saber que a foto é de
+        // hoje; e o caminho deixa de ser adivinhável, então reenviar o path de
+        // ontem numa janela de "N vezes por semana" não paga mais.
+        caminho = `${usuarioId}/${ocorrenciaId}/${crypto.randomUUID()}.webp`
         const { error } = await supabase.storage
           .from('checkins')
-          .upload(caminho, comprimida, { contentType: 'image/webp', upsert: true })
+          .upload(caminho, comprimida, { contentType: 'image/webp' })
         // Foto e opcional: falhar o upload nao pode impedir o habito de ser
         // marcado. Mas a tela precisa contar, senao a comprovacao some calada.
         if (error) {

@@ -90,6 +90,21 @@ export function ehModuloHorario(m: Modulo): boolean {
 }
 
 /**
+ * Se o check-in exige foto. Dono unico da regra: a folha e o card precisam
+ * dizer a mesma coisa, senao o card promete camera e a folha nao pede, ou pior.
+ *
+ * Agua fica de fora sempre, mesmo em grupo que exige foto: sao ate 10 copos por
+ * dia e uma foto por copo transforma marcar agua em sessao de fotografia.
+ * Anexar continua permitido, so deixa de ser obrigatorio. Acordar e dormir
+ * exigem sempre, porque a foto e a prova social do horario. A trava de verdade
+ * e o `check_in`.
+ */
+export function exigeFotoNoCheckIn(m: Modulo, grupoExigeFoto: boolean): boolean {
+  if (m === 'agua') return false
+  return grupoExigeFoto || ehModuloHorario(m)
+}
+
+/**
  * Minutos desde o inicio da janela do modulo.
  *
  * Em `dormir`, hora abaixo de 06:00 e madrugada do dia seguinte: sem isso o

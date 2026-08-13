@@ -171,7 +171,10 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
                     <CameraOff className="size-4" />
                   )}
                 </Botao>
-                <p className="text-xs text-muted-foreground">Vale para todo desafio do grupo.</p>
+                <p className="text-xs text-muted-foreground">
+                  Vale para todo desafio do grupo, menos a rotina de beber água: ela tem várias
+                  marcações por dia e pediria uma foto por copo.
+                </p>
                 {alternarFoto.isError && (
                   <p className="text-sm text-destructive">{alternarFoto.error.message}</p>
                 )}

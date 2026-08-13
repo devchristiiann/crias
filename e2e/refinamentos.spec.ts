@@ -455,7 +455,7 @@ test.describe.serial('refinamentos da 0019', () => {
       'sem conferir storage.objects, exigir foto vira exigir que a pessoa digite um caminho',
     ).toEqual({ error: 'foto_invalida' })
 
-    const caminho = `${idA}/refino.webp`
+    const caminho = `${idA}/${ocorrenciaFoto}/refino.webp`
     const upload = await fetch(`${URL_SUPABASE}/storage/v1/object/checkins/${caminho}`, {
       method: 'POST',
       headers: {

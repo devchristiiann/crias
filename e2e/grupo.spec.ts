@@ -140,7 +140,7 @@ test.describe.serial('refinamentos de grupo', () => {
     const ocorrenciaB = (ocorrencias.corpo as { id: string }[])[0]?.id
     expect(ocorrenciaB, 'desafio de grupo precisa gerar ocorrencia para o membro').toBeTruthy()
 
-    const caminhoFoto = `${idB}/${ocorrenciaB}.png`
+    const caminhoFoto = `${idB}/${ocorrenciaB}/foto.png`
     const envio = await fetch(`${URL_SUPABASE}/storage/v1/object/checkins/${caminhoFoto}`, {
       method: 'POST',
       headers: { apikey: ANON, Authorization: `Bearer ${tokenB}`, 'Content-Type': 'image/png' },

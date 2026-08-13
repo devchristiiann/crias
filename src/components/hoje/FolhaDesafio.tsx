@@ -13,9 +13,11 @@ import {
 import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { useSessao } from '@/hooks/useSessao'
 import { CATALOGO, POR_ID } from '@/lib/catalogo'
-import { rotuloFrequencia } from '@/lib/frequencia'
+import { hojeSP } from '@/lib/data'
+import { rotuloFrequencia, type RegraFrequencia } from '@/lib/frequencia'
 import { iconeDoHabito } from '@/lib/icones'
-import { ehModuloHorario, estadoFaixa } from '@/lib/modulos'
+import { ehModuloHorario, estadoFaixa, exigeFotoNoCheckIn, type Modulo } from '@/lib/modulos'
+import { cn } from '@/lib/utils'
 
 export type FaceBau =
   | { visual: 'ouro'; rotulo: string }
@@ -33,6 +35,52 @@ export function faceDoPremio(premio: PremioBau | null | undefined): FaceBau | nu
     return { visual: 'item', rotulo: premio.item_nome ?? 'Item novo', itemId: premio.item_id }
   }
   return { visual: 'ouro', rotulo: `${premio.ouro} de ouro` }
+}
+
+/**
+ * O que o botão vai marcar, nunca o que ele encerra.
+ *
+ * "Concluir" numa rotina de 5 copos parece fechar o dia inteiro, e foi por isso
+ * que o dono procurou uma opção de marcar um copo só e concluiu que ela não
+ * existia. O rótulo agora diz qual marcação vai acontecer, e na última avisa que
+ * aquela fecha o período.
+ */
+export function rotuloMarcacao(modulo: Modulo, feitas: number, alvo: number): string {
+  if (alvo <= 1) return 'Concluir'
+  const proxima = feitas + 1
+  if (proxima >= alvo) {
+    return modulo === 'agua' ? 'Último copo, fecha o dia' : 'Última marcação, fecha o período'
+  }
+  return modulo === 'agua' ? `Marcar copo ${proxima} de ${alvo}` : `Marcar ${proxima} de ${alvo}`
+}
+
+/**
+ * O que o desfazer vai fazer de verdade, dito antes de a pessoa confirmar.
+ *
+ * O eixo é o tipo de frequência, não o módulo nem `vezes_alvo`. A tela ramificava
+ * pelos dois últimos e mentia duas vezes em "N vezes por semana": prometia não
+ * mexer no ouro, quando o desfazer de janela devolve ouro, e prometia derrubar o
+ * período inteiro, quando ele volta só a marcação de hoje.
+ *
+ * Pura de propósito: é aqui que mora a ramificação, e é isto que o teste cobre.
+ */
+export function detalheDoDesfazer(
+  tipo: RegraFrequencia['tipo'],
+  modulo: Modulo,
+  feito: boolean,
+  vezesAlvo: number,
+): string {
+  if (tipo === 'n_por_semana' || tipo === 'n_por_mes') {
+    return 'Volta a marcação de hoje, com o ouro dela. As dos outros dias ficam.'
+  }
+  if (!feito) {
+    return modulo === 'agua'
+      ? 'Volta um copo, sem mexer no ouro.'
+      : 'Volta uma marcação, sem mexer no ouro.'
+  }
+  return vezesAlvo > 1
+    ? 'Todas as marcações de hoje voltam atrás, com o ouro.'
+    : 'O ouro deste check-in volta atrás.'
 }
 
 /**
@@ -113,6 +161,7 @@ export function FolhaDesafio({
 }) {
   const [foto, setFoto] = useState<File | null>(null)
   const [resultado, setResultado] = useState<ResultadoCheckIn | null>(null)
+  const [devolvido, setDevolvido] = useState<number | null>(null)
   const [desmarcando, setDesmarcando] = useState(false)
   const entradaArquivo = useRef<HTMLInputElement>(null)
   const checkIn = useCheckIn()
@@ -122,6 +171,7 @@ export function FolhaDesafio({
   function fechar() {
     setFoto(null)
     setResultado(null)
+    setDevolvido(null)
     setDesmarcando(false)
     // A mutation vive junto com a folha: sem limpar, o erro do desafio anterior
     // reaparece em cima do proximo.
@@ -149,24 +199,37 @@ export function FolhaDesafio({
   // ainda vai valer, entao a tela diz a partir de que horas, nao que encerrou.
   const faixaAberta = !porHorario || faixa?.estado === 'aberta'
   // A trava de verdade e a RPC. Aqui a tela so evita um Concluir que ja nasceria
-  // recusado pelo servidor. Acordar e dormir exigem foto sempre, independente do
-  // grupo: e a prova social do horario.
-  const exigeFoto = ocorrencia.grupoExigeFoto || porHorario
-  // A RPC aceita `coalesce(p_foto, o.foto_path)`: foto ja enviada num periodo
-  // de varias vezes continua valendo, e travar aqui recusaria o que o servidor
-  // aprovaria.
-  const temFoto = Boolean(foto) || Boolean(ocorrencia.foto_path)
+  // recusado pelo servidor. A regra mora em `exigeFotoNoCheckIn`, junto com a do
+  // card, e combina com a do `check_in`.
+  const exigeFoto = exigeFotoNoCheckIn(ocorrencia.modulo, ocorrencia.grupoExigeFoto)
+  // O servidor devolve o novo total na resposta. Sem isto o progresso so anda
+  // quando a query volta, e quem marcou o copo fica olhando o numero antigo.
+  const feitas = resultado?.vezes_feitas ?? ocorrencia.vezes_feitas
+  const faltam = Math.max(0, ocorrencia.vezes_alvo - feitas)
+  const ehAgua = ocorrencia.modulo === 'agua'
+  // Foto guardada so vale de novo quando a marcacao anterior foi hoje, e o
+  // cliente nao le `ultima_marcacao_sp`. Exigir a foto da vez cobre os dois
+  // casos sem adivinhar: onde o servidor aceitaria a guardada, o modulo e agua,
+  // que nunca exige foto.
+  const temFoto = Boolean(foto)
   const faltaFoto = exigeFoto && !temFoto
-  // Duas contas diferentes na mesma RPC, e a frase precisa dizer qual delas vai
-  // rodar. Marcação que ainda não pagou volta uma unidade só, e prometer que o
-  // período inteiro cai faria a pessoa desistir de corrigir um copo a mais.
-  const detalheDesmarcar = !feito
-    ? ocorrencia.modulo === 'agua'
-      ? 'Volta um copo, sem mexer no ouro.'
-      : 'Volta uma marcação, sem mexer no ouro.'
-    : ocorrencia.vezes_alvo > 1
-      ? 'Todas as marcações deste período voltam atrás, com o ouro.'
-      : 'O ouro deste check-in volta atrás.'
+  // O eixo da regra nova é o tipo de frequência, não o módulo nem `vezes_alvo`.
+  // A ocorrência de "N vezes por semana" e a de "N vezes por mês" cobrem a
+  // janela inteira, valem uma marcação por dia, e o desfazer delas devolve só a
+  // marcação de hoje, com o ouro dela.
+  const ehJanela = ocorrencia.regra.tipo === 'n_por_semana' || ocorrencia.regra.tipo === 'n_por_mes'
+  const marcouHoje = ocorrencia.ultima_marcacao_sp === hojeSP()
+  // O botão prometia "Marcar 2 de 3" e só descobria `ja_marcado_hoje` no clique.
+  const jaMarcadoHoje = ehJanela && marcouHoje
+  // Desfazer de janela só alcança a marcação de hoje. Nos outros dias a RPC
+  // devolve `fora_do_dia`, e um botão que só sabe falhar não é botão.
+  const podeDesfazer = temMarcacao && (!ehJanela || marcouHoje)
+  const detalheDesmarcar = detalheDoDesfazer(
+    ocorrencia.regra.tipo,
+    ocorrencia.modulo,
+    feito,
+    ocorrencia.vezes_alvo,
+  )
 
   return (
     <Folha aberta aoFechar={fechar} titulo={ocorrencia.titulo}>
@@ -204,6 +267,39 @@ export function FolhaDesafio({
           </dl>
         </div>
 
+        {/* Progresso desenhado, não só escrito, e antes de qualquer botão: a
+            frase solta em cinza foi lida e não entendida. Um traço por marcação
+            mostra o que falta sem ninguém ter que contar. */}
+        {ocorrencia.vezes_alvo > 1 && (
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-semibold">
+                {feitas} de {ocorrencia.vezes_alvo} {ehAgua ? 'copos hoje' : 'vezes no período'}
+              </p>
+              <p className="shrink-0 text-xs text-muted-foreground">
+                {faltam > 0 ? `Faltam ${faltam}` : 'Tudo marcado'}
+              </p>
+            </div>
+            <div className="mt-2 flex gap-1" aria-hidden="true">
+              {Array.from({ length: ocorrencia.vezes_alvo }, (_, i) => (
+                <span
+                  key={i}
+                  className={cn('h-2 flex-1 rounded-full', i < feitas ? 'bg-primary' : 'bg-border')}
+                />
+              ))}
+            </div>
+            {/* Água paga uma vez só, ao fechar o dia. Sem esta linha, quem marca
+                o primeiro copo e não vê ouro nenhum acha que o check-in falhou. */}
+            {ehAgua && faltam > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                O ouro entra quando fechar os {ocorrencia.vezes_alvo}.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Depois do próprio progresso: quantos copos faltam para mim vem antes
+            de quantos do grupo já fecharam. */}
         {ocorrencia.grupoNome && (
           <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
             <Users className="size-4 shrink-0" />
@@ -212,26 +308,20 @@ export function FolhaDesafio({
           </p>
         )}
 
-        {ocorrencia.vezes_alvo > 1 &&
-          (ocorrencia.modulo === 'agua' ? (
-            // Água paga uma vez só, ao fechar o dia. Sem esta linha, quem marca
-            // o primeiro copo e não vê ouro nenhum acha que o check-in falhou.
-            <p className="text-sm text-muted-foreground">
-              Você bebeu {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo} copos hoje. O ouro
-              entra quando fechar os {ocorrencia.vezes_alvo}.
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Você marcou {ocorrencia.vezes_feitas} de {ocorrencia.vezes_alvo} vezes neste período.
-            </p>
-          ))}
-
         {resultado?.bau && face && <RevelacaoBau face={face} no={resultado.no} />}
 
-        {resultado && !resultado.ja_feito && (
+        {/* Marcação parcial de água paga zero de propósito. Anunciar "Mais 0 de
+            ouro" ali faria o check-in que deu certo parecer defeito. */}
+        {resultado && !resultado.ja_feito && (resultado.ouro_ganho ?? 0) > 0 && (
           <p className="text-sm font-medium text-success">
             Mais {resultado.ouro_ganho} de ouro. Ofensiva de {resultado.streak} dias.
           </p>
+        )}
+
+        {/* O desfazer de janela devolve ouro, e a resposta do servidor era
+            descartada: o saldo caía sem nenhuma explicação na tela. */}
+        {devolvido !== null && devolvido > 0 && (
+          <p className="text-sm font-medium">Menos {devolvido} de ouro. A marcação voltou atrás.</p>
         )}
 
         {resultado?.fotoFalhou && (
@@ -258,7 +348,15 @@ export function FolhaDesafio({
           </p>
         )}
 
-        {!feito && faixaAberta && (
+        {/* A janela já foi marcada hoje. Sem esta linha o botão prometia a
+            próxima marcação e o servidor recusava com `ja_marcado_hoje`. */}
+        {!feito && jaMarcadoHoje && (
+          <p className="text-sm text-muted-foreground">
+            Você já marcou esta rotina hoje. A próxima marcação conta a partir de amanhã.
+          </p>
+        )}
+
+        {!feito && faixaAberta && !jaMarcadoHoje && (
           <>
             <input
               ref={entradaArquivo}
@@ -297,7 +395,9 @@ export function FolhaDesafio({
                   {
                     onSuccess: (r) => {
                       setResultado(r)
-                      // O giro do baú leva 900ms. Fechar em 1200 apagaria o
+                      // Só fecha quando a marcação encerrou o período. Quem bebeu
+                      // dois copos seguidos marca o segundo sem reabrir tudo.
+                      // O giro do baú leva 900ms: fechar em 1200 apagaria o
                       // prêmio no instante em que ele aparece.
                       if (r.completou || r.ja_feito) setTimeout(fechar, r.bau ? 2600 : 1200)
                     },
@@ -305,12 +405,12 @@ export function FolhaDesafio({
                 )
               }
             >
-              Concluir
+              {rotuloMarcacao(ocorrencia.modulo, feitas, ocorrencia.vezes_alvo)}
             </Botao>
           </>
         )}
 
-        {temMarcacao && (
+        {podeDesfazer && (
           <Botao
             variante="secundario"
             className="w-full"
@@ -350,8 +450,9 @@ export function FolhaDesafio({
           erro={desfazer.error?.message ?? null}
           aoConfirmar={() =>
             desfazer.mutate(ocorrencia.id, {
-              onSuccess: () => {
+              onSuccess: (r) => {
                 setResultado(null)
+                setDevolvido(r.ouro_devolvido ?? 0)
                 setDesmarcando(false)
               },
             })

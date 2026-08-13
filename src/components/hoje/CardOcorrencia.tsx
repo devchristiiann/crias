@@ -3,7 +3,7 @@ import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { horaCurta } from '@/lib/data'
 import { rotuloFrequencia } from '@/lib/frequencia'
 import { iconeDoHabito } from '@/lib/icones'
-import { ehModuloHorario, estadoFaixa } from '@/lib/modulos'
+import { ehModuloHorario, estadoFaixa, exigeFotoNoCheckIn } from '@/lib/modulos'
 import { cn } from '@/lib/utils'
 
 export function CardOcorrencia({
@@ -82,7 +82,9 @@ export function CardOcorrencia({
               {ocorrencia.feitosNoGrupo} de {ocorrencia.totalGrupo}
             </span>
           )}
-          {ocorrencia.grupoExigeFoto && (
+          {/* Mesma regra da folha: água não pede foto nem em grupo que exige.
+              Câmera aqui e nenhuma cobrança lá diria coisas diferentes. */}
+          {exigeFotoNoCheckIn(ocorrencia.modulo, ocorrencia.grupoExigeFoto) && (
             <span className="flex items-center gap-1">
               <Camera className="size-3" />
               <span className="sr-only">Precisa de foto</span>
