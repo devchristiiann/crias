@@ -11,8 +11,12 @@ import { iconeDoHabito } from '@/lib/icones'
  * servidor esta certo.
  */
 
-export type Modulo = 'livre' | 'acordar' | 'dormir' | 'agua'
-/** `ate` no formato HH:MM. */
+export type Modulo = 'livre' | 'acordar' | 'dormir' | 'agua' | 'tela'
+/**
+ * `ate` no formato HH:MM. Em `acordar` e `dormir` e hora do relogio. Em `tela` e
+ * DURACAO: o mesmo formato com outro significado, e o servidor usa o mesmo
+ * `habits.config`.
+ */
 export type Faixa = { ate: string; ouro: number }
 export type ConfigHorario = { faixas: Faixa[] }
 export type ConfigAgua = { vezes: number; lembretes: string[] }
@@ -25,6 +29,9 @@ export const MAX_FAIXAS = 4
 export const OURO_MAXIMO = 10
 export const COPOS_MIN = 2
 export const COPOS_MAX = 10
+/** Duracao declarada no check-in de `tela`. O servidor recusa fora daqui. */
+const MINUTOS_MIN = 1
+const MINUTOS_MAX = 1440
 
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/
 const horaSchema = z.string().regex(HORA)
@@ -62,6 +69,7 @@ const ROTULOS: Record<Modulo, string> = {
   acordar: 'Acordar cedo',
   dormir: 'Dormir cedo',
   agua: 'Beber água',
+  tela: 'Menos tela',
 }
 
 /**
@@ -75,6 +83,7 @@ export const ICONE_MODULO: Record<Modulo, string> = {
   acordar: 'sunrise',
   dormir: 'moon',
   agua: 'droplets',
+  tela: 'smartphone',
 }
 
 export function rotuloModulo(m: Modulo): string {
@@ -90,38 +99,140 @@ export function ehModuloHorario(m: Modulo): boolean {
 }
 
 /**
+ * Faixa por duracao, nao por relogio. `tela` e o unico, e a diferenca importa:
+ * o `ate` daqui nunca passa pela regra de madrugada do `dormir`.
+ */
+export function ehModuloDuracao(m: Modulo): boolean {
+  return m === 'tela'
+}
+
+/**
+ * Rotina que so existe dentro de grupo. Sem grupo nao existe quem valide, e o
+ * check-in ficaria esperando para sempre.
+ */
+export function ehModuloDeGrupo(m: Modulo): boolean {
+  return m === 'tela'
+}
+
+/**
+ * Unico modulo onde subir da galeria e permitido. Todos os outros abrem a
+ * camera, porque foto tirada na hora vale mais que arquivo escolhido.
+ *
+ * NAO "padronize" isto de volta pondo `capture` no campo de foto: print de tempo
+ * de uso nao existe na camera, e o modulo inteiro para de funcionar. A prova
+ * mais fraca e o motivo de este modulo ter enquete e os outros nao.
+ */
+export function permiteGaleria(m: Modulo): boolean {
+  return m === 'tela'
+}
+
+/**
+ * Ocorrencia declarada e esperando o grupo. Recebe `string` de proposito: o
+ * status vem de `occurrences.status`, que ganhou `em_validacao` na migration, e
+ * este arquivo nao e dono daquele tipo.
+ */
+export function emValidacao(status: string): boolean {
+  return status === 'em_validacao'
+}
+
+/**
  * Se o check-in exige foto. Dono unico da regra: a folha e o card precisam
  * dizer a mesma coisa, senao o card promete camera e a folha nao pede, ou pior.
  *
  * Agua fica de fora sempre, mesmo em grupo que exige foto: sao ate 10 copos por
  * dia e uma foto por copo transforma marcar agua em sessao de fotografia.
  * Anexar continua permitido, so deixa de ser obrigatorio. Acordar e dormir
- * exigem sempre, porque a foto e a prova social do horario. A trava de verdade
- * e o `check_in`.
+ * exigem sempre, porque a foto e a prova social do horario. Tela exige sempre
+ * pelo mesmo motivo mais forte: sem o print nao ha o que o grupo validar. A
+ * trava de verdade e o `check_in`.
  */
 export function exigeFotoNoCheckIn(m: Modulo, grupoExigeFoto: boolean): boolean {
   if (m === 'agua') return false
-  return grupoExigeFoto || ehModuloHorario(m)
+  return grupoExigeFoto || ehModuloHorario(m) || ehModuloDuracao(m)
+}
+
+/** Minutos puros de um HH:MM. Sem regra de janela nenhuma. */
+function minutosDoTexto(hhmm: string): number {
+  return Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
 }
 
 /**
- * Minutos desde o inicio da janela do modulo.
+ * Minutos desde o inicio da janela do modulo. **So os modulos de relogio.**
  *
  * Em `dormir`, hora abaixo de 06:00 e madrugada do dia seguinte: sem isso o
  * modulo nasce quebrado para quem dorme 00h30, que e a maioria do publico.
+ *
+ * `tela` passa por aqui e sai intacto, e precisa continuar assim: la o `ate` e
+ * duracao, e somar 24 horas faria 20 minutos de uso virar uma faixa maior que
+ * 23 horas de uso. Quem converte duracao e `minutosDoTexto`, direto.
  */
 function minutosNaJanela(modulo: Modulo, hhmm: string): number {
-  const minutos = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+  const minutos = minutosDoTexto(hhmm)
   return modulo === 'dormir' && minutos < 6 * 60 ? minutos + 24 * 60 : minutos
 }
 
-const JANELAS: Record<'acordar' | 'dormir', { de: number; ate: number; aviso: string }> = {
-  acordar: { de: 0, ate: 11 * 60 + 59, aviso: 'Acordar cedo aceita horário de 00:00 até 11:59.' },
+/**
+ * Limites de cada faixa, por modulo. Relogio e duracao dividem o mesmo editor e
+ * a mesma validacao: o que muda e o intervalo aceito e como a frase explica.
+ */
+const LIMITES: Record<
+  'acordar' | 'dormir' | 'tela',
+  { de: number; ate: number; aviso: string; ordem: string; ouro: string }
+> = {
+  acordar: {
+    de: 0,
+    ate: 11 * 60 + 59,
+    aviso: 'Acordar cedo aceita horário de 00:00 até 11:59.',
+    ordem: 'Cada faixa precisa terminar depois da anterior.',
+    ouro: 'Faixa mais tarde precisa pagar menos ouro que a anterior.',
+  },
   dormir: {
     de: 18 * 60,
     ate: 5 * 60 + 59 + 24 * 60,
     aviso: 'Dormir cedo aceita horário de 18:00 até 05:59.',
+    ordem: 'Cada faixa precisa terminar depois da anterior.',
+    ouro: 'Faixa mais tarde precisa pagar menos ouro que a anterior.',
   },
+  tela: {
+    de: 15,
+    ate: 23 * 60 + 59,
+    aviso: 'O tempo de uso aceita de 00:15 até 23:59.',
+    ordem: 'Cada faixa precisa cobrir mais tempo que a anterior.',
+    ouro: 'Faixa de mais tempo precisa pagar menos ouro que a anterior.',
+  },
+}
+
+function limiteDaFaixa(m: Modulo) {
+  return m === 'acordar' || m === 'dormir' || m === 'tela' ? LIMITES[m] : null
+}
+
+/**
+ * Minutos de uma duracao HH:MM digitada, ou null quando o campo esta vazio ou
+ * torto. Quem recusa de verdade e o `check_in`, com `minutos_invalidos`.
+ */
+export function minutosDeDuracao(hhmm: string): number | null {
+  if (!HORA.test(hhmm)) return null
+  const minutos = minutosDoTexto(hhmm)
+  return minutos >= MINUTOS_MIN && minutos <= MINUTOS_MAX ? minutos : null
+}
+
+/**
+ * Faixa que cobre os minutos declarados, ou null acima da ultima faixa.
+ *
+ * Mesma regra do servidor: a primeira faixa cujo `ate` seja maior ou igual ao
+ * declarado. Nenhuma serve e o check-in e recusado com `fora_da_faixa`.
+ *
+ * Aceita nulo e zero de proposito, e devolve null para os dois: a coluna
+ * `minutos_declarados` e nula fora do modulo `tela`, e um `?? 0` no chamador
+ * cairia na PRIMEIRA faixa, que e justamente a que paga mais. Quem nao declarou
+ * nao tem faixa, e a guarda mora aqui para nao existir em duas versoes.
+ */
+export function faixaPorDuracao(
+  config: ConfigModulo,
+  minutos: number | null | undefined,
+): Faixa | null {
+  if (!('faixas' in config) || !minutos || minutos <= 0) return null
+  return config.faixas.find((f) => minutosDoTexto(f.ate) >= minutos) ?? null
 }
 
 /** Instanciar o formatador e a parte cara. Uma vez por modulo, nao por card. */
@@ -149,7 +260,7 @@ export function estadoFaixa(
   agora: Date,
 ): EstadoFaixa | null {
   if (!ehModuloHorario(modulo) || !('faixas' in config) || config.faixas.length === 0) return null
-  const janela = JANELAS[modulo === 'dormir' ? 'dormir' : 'acordar']
+  const janela = LIMITES[modulo === 'dormir' ? 'dormir' : 'acordar']
   const abre = `${String(Math.floor(janela.de / 60)).padStart(2, '0')}:${String(janela.de % 60).padStart(2, '0')}`
   const agoraNaJanela = minutosNaJanela(modulo, RELOGIO_SP.format(agora))
   if (agoraNaJanela < janela.de) return { estado: 'antes', faixa: config.faixas[0], abre }
@@ -173,27 +284,27 @@ export function faixaVigente(modulo: Modulo, config: ConfigModulo, agora: Date):
  * mudam entre `acordar` e `dormir`.
  */
 export function erroConfig(modulo: Modulo, config: ConfigModulo): string | null {
-  if (ehModuloHorario(modulo)) {
+  // Relogio e duracao compartilham o editor e a validacao. `minutosNaJanela` so
+  // muda alguma coisa em `dormir`, entao a duracao atravessa em minutos puros.
+  const limite = limiteDaFaixa(modulo)
+  if (limite) {
     const faixas = 'faixas' in config ? config.faixas : []
-    const janela = JANELAS[modulo === 'dormir' ? 'dormir' : 'acordar']
     if (faixas.length < 1 || faixas.length > MAX_FAIXAS) {
       return `Escolha de 1 a ${MAX_FAIXAS} faixas.`
     }
     for (const faixa of faixas) {
-      if (!HORA.test(faixa.ate)) return janela.aviso
+      if (!HORA.test(faixa.ate)) return limite.aviso
       const minuto = minutosNaJanela(modulo, faixa.ate)
-      if (minuto < janela.de || minuto > janela.ate) return janela.aviso
+      if (minuto < limite.de || minuto > limite.ate) return limite.aviso
       if (!Number.isInteger(faixa.ouro) || faixa.ouro < 1 || faixa.ouro > OURO_MAXIMO) {
         return `O ouro de cada faixa fica entre 1 e ${OURO_MAXIMO}.`
       }
     }
     for (let i = 1; i < faixas.length; i++) {
       if (minutosNaJanela(modulo, faixas[i].ate) <= minutosNaJanela(modulo, faixas[i - 1].ate)) {
-        return 'Cada faixa precisa terminar depois da anterior.'
+        return limite.ordem
       }
-      if (faixas[i].ouro >= faixas[i - 1].ouro) {
-        return 'Faixa mais tarde precisa pagar menos ouro que a anterior.'
-      }
+      if (faixas[i].ouro >= faixas[i - 1].ouro) return limite.ouro
     }
   }
 

@@ -3,7 +3,9 @@ import {
   configSchema,
   erroConfig,
   estadoFaixa,
+  faixaPorDuracao,
   faixaVigente,
+  minutosDeDuracao,
   type ConfigHorario,
 } from './modulos'
 
@@ -21,6 +23,15 @@ const DORMIR: ConfigHorario = {
     { ate: '22:00', ouro: 10 },
     { ate: '23:00', ouro: 7 },
     { ate: '00:30', ouro: 4 },
+  ],
+}
+
+// Duracao, nao relogio: ate 1h vale 10, ate 2h vale 7, ate 3h vale 4.
+const TELA: ConfigHorario = {
+  faixas: [
+    { ate: '01:00', ouro: 10 },
+    { ate: '02:00', ouro: 7 },
+    { ate: '03:00', ouro: 4 },
   ],
 }
 
@@ -294,5 +305,120 @@ describe('estadoFaixa', () => {
     expect(estadoFaixa('livre', {}, emSP('06:00'))).toBeNull()
     expect(estadoFaixa('agua', { vezes: 5, lembretes: [] }, emSP('06:00'))).toBeNull()
     expect(estadoFaixa('acordar', { faixas: [] }, emSP('06:00'))).toBeNull()
+  })
+
+  it('tela nao tem faixa por relogio, so por duracao declarada', () => {
+    expect(estadoFaixa('tela', TELA, emSP('06:00'))).toBeNull()
+    expect(faixaVigente('tela', TELA, emSP('06:00'))).toBeNull()
+  })
+})
+
+describe('erroConfig do modulo tela', () => {
+  it('aprova faixas de duracao', () => {
+    expect(erroConfig('tela', TELA)).toBeNull()
+    expect(configSchema.safeParse(TELA).success).toBe(true)
+  })
+
+  it('aprova as duas bordas de duracao', () => {
+    const config = { faixas: [{ ate: '00:15', ouro: 10 }, { ate: '23:59', ouro: 4 }] }
+    expect(erroConfig('tela', config)).toBeNull()
+  })
+
+  it('recusa duracao menor que quinze minutos', () => {
+    expect(erroConfig('tela', { faixas: [{ ate: '00:14', ouro: 10 }] })).toBe(
+      'O tempo de uso aceita de 00:15 até 23:59.',
+    )
+    expect(erroConfig('tela', { faixas: [{ ate: '00:00', ouro: 10 }] })).toBeTruthy()
+  })
+
+  it('recusa faixa que cobre menos tempo que a anterior', () => {
+    const config = { faixas: [{ ate: '02:00', ouro: 10 }, { ate: '01:00', ouro: 4 }] }
+    expect(erroConfig('tela', config)).toBe('Cada faixa precisa cobrir mais tempo que a anterior.')
+  })
+
+  it('recusa ouro que sobe na faixa de mais tempo', () => {
+    const config = { faixas: [{ ate: '01:00', ouro: 4 }, { ate: '02:00', ouro: 10 }] }
+    expect(erroConfig('tela', config)).toBe(
+      'Faixa de mais tempo precisa pagar menos ouro que a anterior.',
+    )
+  })
+
+  it('recusa lista vazia e mais de quatro faixas', () => {
+    expect(erroConfig('tela', { faixas: [] })).toBe('Escolha de 1 a 4 faixas.')
+    const cinco = {
+      faixas: [
+        { ate: '01:00', ouro: 10 },
+        { ate: '02:00', ouro: 8 },
+        { ate: '03:00', ouro: 6 },
+        { ate: '04:00', ouro: 4 },
+        { ate: '05:00', ouro: 2 },
+      ],
+    }
+    expect(erroConfig('tela', cinco)).toBeTruthy()
+  })
+
+  it('recusa ouro fora de 1 a 10', () => {
+    expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: 11 }] })).toBeTruthy()
+    expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: 0 }] })).toBeTruthy()
+  })
+
+  it('nao aplica a regra de madrugada do dormir', () => {
+    // A mesma config: 30 minutos de uso e depois 22 horas de uso, decrescente e
+    // valida. Em `dormir` os mesmos valores viram 00:30 da madrugada, que soma
+    // 24 horas e cai DEPOIS das 22:00. Se a duracao herdar essa regra, meia
+    // hora de celular passa a valer menos que um dia inteiro.
+    const config = { faixas: [{ ate: '00:30', ouro: 10 }, { ate: '22:00', ouro: 4 }] }
+    expect(erroConfig('tela', config)).toBeNull()
+    expect(erroConfig('dormir', config)).toBe('Cada faixa precisa terminar depois da anterior.')
+  })
+})
+
+describe('minutosDeDuracao', () => {
+  it('converte em minutos puros', () => {
+    expect(minutosDeDuracao('01:30')).toBe(90)
+    expect(minutosDeDuracao('23:59')).toBe(1439)
+  })
+
+  it('recusa vazio, texto torto e zero', () => {
+    expect(minutosDeDuracao('')).toBeNull()
+    expect(minutosDeDuracao('1h30')).toBeNull()
+    expect(minutosDeDuracao('24:00')).toBeNull()
+    expect(minutosDeDuracao('00:00')).toBeNull()
+  })
+})
+
+describe('faixaPorDuracao', () => {
+  it('antes da primeira faixa vale a primeira', () => {
+    expect(faixaPorDuracao(TELA, 30)).toEqual({ ate: '01:00', ouro: 10 })
+    expect(faixaPorDuracao(TELA, 1)).toEqual({ ate: '01:00', ouro: 10 })
+  })
+
+  it('na borda da faixa ainda vale a faixa', () => {
+    expect(faixaPorDuracao(TELA, 60)).toEqual({ ate: '01:00', ouro: 10 })
+    expect(faixaPorDuracao(TELA, 120)).toEqual({ ate: '02:00', ouro: 7 })
+    expect(faixaPorDuracao(TELA, 180)).toEqual({ ate: '03:00', ouro: 4 })
+  })
+
+  it('um minuto depois da borda cai na faixa seguinte', () => {
+    expect(faixaPorDuracao(TELA, 61)).toEqual({ ate: '02:00', ouro: 7 })
+  })
+
+  it('acima da ultima faixa nao vale nada', () => {
+    // O servidor recusa este check-in com `fora_da_faixa`.
+    expect(faixaPorDuracao(TELA, 181)).toBeNull()
+    expect(faixaPorDuracao(TELA, 1440)).toBeNull()
+  })
+
+  it('config sem faixa nenhuma nao vale nada', () => {
+    expect(faixaPorDuracao({}, 30)).toBeNull()
+    expect(faixaPorDuracao({ vezes: 5, lembretes: [] }, 30)).toBeNull()
+  })
+
+  it('sem minuto declarado nao cai na primeira faixa', () => {
+    // Zero e nulo caindo na primeira faixa prometeriam o valor MAIOR para quem
+    // nao declarou nada. Fora de `tela` a coluna e sempre nula.
+    expect(faixaPorDuracao(TELA, 0)).toBeNull()
+    expect(faixaPorDuracao(TELA, null)).toBeNull()
+    expect(faixaPorDuracao(TELA, undefined)).toBeNull()
   })
 })

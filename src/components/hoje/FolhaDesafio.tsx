@@ -2,6 +2,7 @@ import { Camera, Coins, Flame, Undo2, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ExcluirRotina } from '@/components/habito/ExcluirRotina'
 import { Botao } from '@/components/ui/Botao'
+import { Campo } from '@/components/ui/Campo'
 import { Confirmar } from '@/components/ui/Confirmar'
 import { Folha } from '@/components/ui/Folha'
 import {
@@ -10,13 +11,24 @@ import {
   type PremioBau,
   type ResultadoCheckIn,
 } from '@/hooks/useCheckIn'
+import { useEnquetesGrupo } from '@/hooks/useEnquetesGrupo'
 import type { OcorrenciaHoje } from '@/hooks/useOcorrenciasHoje'
 import { useSessao } from '@/hooks/useSessao'
 import { CATALOGO, POR_ID } from '@/lib/catalogo'
 import { hojeSP } from '@/lib/data'
 import { rotuloFrequencia, type RegraFrequencia } from '@/lib/frequencia'
 import { iconeDoHabito } from '@/lib/icones'
-import { ehModuloHorario, estadoFaixa, exigeFotoNoCheckIn, type Modulo } from '@/lib/modulos'
+import {
+  ehModuloDuracao,
+  ehModuloHorario,
+  emValidacao,
+  estadoFaixa,
+  exigeFotoNoCheckIn,
+  faixaPorDuracao,
+  minutosDeDuracao,
+  permiteGaleria,
+  type Modulo,
+} from '@/lib/modulos'
 import { cn } from '@/lib/utils'
 
 export type FaceBau =
@@ -46,6 +58,9 @@ export function faceDoPremio(premio: PremioBau | null | undefined): FaceBau | nu
  * aquela fecha o período.
  */
 export function rotuloMarcacao(modulo: Modulo, feitas: number, alvo: number): string {
+  // `tela` nao conclui nada sozinha: declara e espera o grupo. Escrever
+  // "Concluir" aqui prometeria um ouro que ainda vai ser votado.
+  if (ehModuloDuracao(modulo)) return 'Declarar e enviar ao grupo'
   if (alvo <= 1) return 'Concluir'
   const proxima = feitas + 1
   if (proxima >= alvo) {
@@ -57,22 +72,32 @@ export function rotuloMarcacao(modulo: Modulo, feitas: number, alvo: number): st
 /**
  * O que o desfazer vai fazer de verdade, dito antes de a pessoa confirmar.
  *
- * O eixo é o tipo de frequência, não o módulo nem `vezes_alvo`. A tela ramificava
- * pelos dois últimos e mentia duas vezes em "N vezes por semana": prometia não
- * mexer no ouro, quando o desfazer de janela devolve ouro, e prometia derrubar o
- * período inteiro, quando ele volta só a marcação de hoje.
+ * O eixo é o tipo de frequência e o STATUS, nunca o módulo sozinho. A tela
+ * ramificava pelo módulo e pelo `vezes_alvo`, e mentia em dois lugares: em "N
+ * vezes por semana" prometia não mexer no ouro, quando o desfazer de janela
+ * devolve ouro; e em `tela` prometia "Nada foi pago ainda" também para a
+ * declaração que o grupo já validou e pagou, onde o desfazer tira 7 de ouro de
+ * verdade da pessoa que acabou de ler que não perderia nada.
  *
  * Pura de propósito: é aqui que mora a ramificação, e é isto que o teste cobre.
  */
 export function detalheDoDesfazer(
   tipo: RegraFrequencia['tipo'],
   modulo: Modulo,
-  feito: boolean,
+  status: OcorrenciaHoje['status'],
   vezesAlvo: number,
 ): string {
   if (tipo === 'n_por_semana' || tipo === 'n_por_mes') {
     return 'Volta a marcação de hoje, com o ouro dela. As dos outros dias ficam.'
   }
+  if (ehModuloDuracao(modulo)) {
+    // Enquete aberta: nada foi pago, então não há ouro para estornar. O que
+    // some é a declaração e os votos que o grupo já tinha dado.
+    return emValidacao(status)
+      ? 'Volta a declaração e apaga os votos do grupo. Nada foi pago ainda.'
+      : 'Volta a declaração. O ouro que o grupo validou volta atrás.'
+  }
+  const feito = status === 'feito'
   if (!feito) {
     return modulo === 'agua'
       ? 'Volta um copo, sem mexer no ouro.'
@@ -160,6 +185,8 @@ export function FolhaDesafio({
   aoFechar: () => void
 }) {
   const [foto, setFoto] = useState<File | null>(null)
+  /** Duração HH:MM digitada no módulo `tela`. Não é hora do relógio. */
+  const [duracao, setDuracao] = useState('')
   const [resultado, setResultado] = useState<ResultadoCheckIn | null>(null)
   const [devolvido, setDevolvido] = useState<number | null>(null)
   const [desmarcando, setDesmarcando] = useState(false)
@@ -167,9 +194,17 @@ export function FolhaDesafio({
   const checkIn = useCheckIn()
   const desfazer = useDesfazerCheckIn()
   const { usuarioId } = useSessao()
+  // Quantos votos a enquete já tem, lido do mesmo lugar que a tela do grupo lê.
+  // Duas contagens do mesmo dado seriam duas chances de uma delas mentir. Só o
+  // módulo de duração tem enquete, então fora dele a consulta nem sai.
+  const { data: enquetes } = useEnquetesGrupo(
+    ocorrencia?.grupoId ?? undefined,
+    ocorrencia && ehModuloDuracao(ocorrencia.modulo) ? [ocorrencia.habitId] : [],
+  )
 
   function fechar() {
     setFoto(null)
+    setDuracao('')
     setResultado(null)
     setDevolvido(null)
     setDesmarcando(false)
@@ -213,6 +248,22 @@ export function FolhaDesafio({
   // que nunca exige foto.
   const temFoto = Boolean(foto)
   const faltaFoto = exigeFoto && !temFoto
+  // Módulo de duração: a pessoa declara quanto usou e o grupo é que valida.
+  const ehTela = ehModuloDuracao(ocorrencia.modulo)
+  const minutosDigitados = ehTela ? minutosDeDuracao(duracao) : null
+  // O tempo declarado volta do servidor em `occurrences.minutos_declarados`.
+  // Minuto ausente ou zero não tem faixa, e quem sabe disso é `faixaPorDuracao`:
+  // a mesma regra que o card usa, escrita uma vez só.
+  const faixaDeclarada = faixaPorDuracao(
+    ocorrencia.config,
+    minutosDigitados ?? ocorrencia.minutos_declarados,
+  )
+  // Acima da última faixa o servidor recusa com `fora_da_faixa`. Barrar aqui
+  // evita gastar o upload da foto num check-in que já nasce recusado.
+  const acimaDaFaixa = minutosDigitados !== null && !faixaDeclarada
+  // Declarou agora, ou reabriu a folha de uma declaração que o grupo ainda não
+  // votou. Nos dois casos o ouro não é dela ainda.
+  const aguardando = ehTela && (Boolean(resultado) || emValidacao(ocorrencia.status))
   // O eixo da regra nova é o tipo de frequência, não o módulo nem `vezes_alvo`.
   // A ocorrência de "N vezes por semana" e a de "N vezes por mês" cobrem a
   // janela inteira, valem uma marcação por dia, e o desfazer delas devolve só a
@@ -223,11 +274,20 @@ export function FolhaDesafio({
   const jaMarcadoHoje = ehJanela && marcouHoje
   // Desfazer de janela só alcança a marcação de hoje. Nos outros dias a RPC
   // devolve `fora_do_dia`, e um botão que só sabe falhar não é botão.
-  const podeDesfazer = temMarcacao && (!ehJanela || marcouHoje)
+  // Declaração em validação também desfaz: nada foi pago, e é o único jeito de
+  // corrigir um print ou um tempo errado antes de o grupo votar.
+  // Enquete com voto não se desfaz: apagar os votos e reabrir o prazo era o
+  // caminho para derrubar quem já tinha contestado. O servidor recusa, e um
+  // botão que só sabe falhar não é botão.
+  const enquete = enquetes?.find((e) => e.id === ocorrencia.id)
+  const jaVotaram = enquete ? enquete.aFavor.length + enquete.contra.length > 0 : false
+  const podeDesfazer = (temMarcacao || aguardando) && (!ehJanela || marcouHoje) && !jaVotaram
   const detalheDesmarcar = detalheDoDesfazer(
     ocorrencia.regra.tipo,
     ocorrencia.modulo,
-    feito,
+    // Acabou de declarar: a linha ainda vem `pendente` do cache, e é a folha
+    // que sabe que a declaração já saiu.
+    aguardando ? 'em_validacao' : ocorrencia.status,
     ocorrencia.vezes_alvo,
   )
 
@@ -251,8 +311,16 @@ export function FolhaDesafio({
               <dd className="flex items-center justify-center gap-1 font-semibold">
                 <Coins className="size-4" />
                 {/* O valor e o da faixa vigente. `ouro_base` guarda so a
-                    primeira faixa e mentiria depois das seis da manha. */}
-                {porHorario ? (faixa?.faixa ? faixa.faixa.ouro : '—') : ocorrencia.ouroBase}
+                    primeira faixa e mentiria depois das seis da manha. Em
+                    `tela` quem escolhe a faixa e o tempo declarado, entao
+                    antes de declarar nao ha valor nenhum para mostrar. */}
+                {porHorario
+                  ? faixa?.faixa
+                    ? faixa.faixa.ouro
+                    : '—'
+                  : ehTela
+                    ? (faixaDeclarada?.ouro ?? '—')
+                    : ocorrencia.ouroBase}
               </dd>
             </div>
             <div>
@@ -356,14 +424,55 @@ export function FolhaDesafio({
           </p>
         )}
 
-        {!feito && faixaAberta && !jaMarcadoHoje && (
+        {/* Depois de declarar, a folha para de oferecer o botão e diz o que
+            está acontecendo. O ouro aparece como promessa, nunca como saldo. */}
+        {aguardando && (
           <>
+            <p className="rounded-lg border border-border bg-muted px-3 py-3 text-sm">
+              {faixaDeclarada
+                ? `Vale ${faixaDeclarada.ouro} de ouro se a validação passar.`
+                : 'O ouro entra quando a validação fechar.'}
+            </p>
+            {/* O botão fica e diz o estado. Sumir com ele deixaria a folha sem
+                resposta para quem acabou de declarar. */}
+            <Botao tamanho="lg" className="w-full" disabled>
+              Aguardando o grupo
+            </Botao>
+          </>
+        )}
+
+        {!feito && faixaAberta && !jaMarcadoHoje && !aguardando && (
+          <>
+            {/* Duração, não hora do relógio: `type="time"` é o teclado nativo
+                certo para HH:MM e o servidor recebe minutos. */}
+            {ehTela && (
+              <Campo
+                rotulo="Quanto tempo você usou"
+                type="time"
+                value={duracao}
+                required
+                erro={acimaDaFaixa ? 'Esse tempo passa da última faixa e não conta hoje.' : undefined}
+                onChange={(e) => setDuracao(e.target.value)}
+              />
+            )}
+
             <input
               ref={entradaArquivo}
               type="file"
               accept="image/*"
               // Acordar e dormir pedem selfie: foto do quarto não prova nada.
-              capture={porHorario ? 'user' : 'environment'}
+              //
+              // `tela` é o ÚNICO módulo sem `capture`, de propósito: print de
+              // tempo de uso não existe na câmera, e forçar a câmera aqui
+              // quebra o módulo inteiro. Não "padronize" isto de volta. A
+              // regra mora em `permiteGaleria`, não neste componente.
+              capture={
+                permiteGaleria(ocorrencia.modulo)
+                  ? undefined
+                  : porHorario
+                    ? 'user'
+                    : 'environment'
+              }
               className="hidden"
               onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
             />
@@ -373,28 +482,43 @@ export function FolhaDesafio({
               onClick={() => entradaArquivo.current?.click()}
             >
               <Camera className="size-4" />
-              {temFoto ? 'Foto anexada' : exigeFoto ? 'Anexar foto, obrigatória' : 'Anexar foto'}
+              {ehTela
+                ? temFoto
+                  ? 'Print anexado'
+                  : 'Anexar o print, obrigatório'
+                : temFoto
+                  ? 'Foto anexada'
+                  : exigeFoto
+                    ? 'Anexar foto, obrigatória'
+                    : 'Anexar foto'}
             </Botao>
 
             {faltaFoto && (
               <p className="text-sm text-muted-foreground">
-                {porHorario
-                  ? 'Anexe uma foto para concluir esta rotina.'
-                  : 'Este grupo só aceita check-in com foto.'}
+                {ehTela
+                  ? 'Anexe o print do tempo de uso. É ele que o grupo valida.'
+                  : porHorario
+                    ? 'Anexe uma foto para concluir esta rotina.'
+                    : 'Este grupo só aceita check-in com foto.'}
               </p>
             )}
 
             <Botao
               tamanho="lg"
               className="w-full"
-              disabled={faltaFoto}
+              // Em `tela` o botão só habilita com o tempo e o print. A trava de
+              // verdade é o `check_in`, que devolve `minutos_invalidos`.
+              disabled={faltaFoto || acimaDaFaixa || (ehTela && minutosDigitados === null)}
               carregando={checkIn.isPending}
               onClick={() =>
                 checkIn.mutate(
-                  { ocorrenciaId: ocorrencia.id, foto },
+                  { ocorrenciaId: ocorrencia.id, foto, minutos: minutosDigitados },
                   {
                     onSuccess: (r) => {
                       setResultado(r)
+                      // Declaração de `tela` não fecha nada: a folha fica aberta
+                      // dizendo que está aguardando o grupo.
+                      if (ehTela) return
                       // Só fecha quando a marcação encerrou o período. Quem bebeu
                       // dois copos seguidos marca o segundo sem reabrir tudo.
                       // O giro do baú leva 900ms: fechar em 1200 apagaria o
@@ -424,7 +548,7 @@ export function FolhaDesafio({
           </Botao>
         )}
 
-        {feito && (
+        {(feito || aguardando) && (
           <Botao variante="secundario" className="w-full" onClick={fechar}>
             Fechar
           </Botao>

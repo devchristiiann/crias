@@ -60,10 +60,10 @@ describe('rotuloMarcacao', () => {
 })
 
 describe('detalheDoDesfazer', () => {
-  it('janela devolve ouro e só a marcação de hoje, feita ou não', () => {
+  it('janela devolve ouro e só a marcação de hoje, em qualquer status', () => {
     for (const tipo of ['n_por_semana', 'n_por_mes'] as const) {
-      for (const feito of [false, true]) {
-        const frase = detalheDoDesfazer(tipo, 'livre', feito, 3)
+      for (const status of ['pendente', 'feito'] as const) {
+        const frase = detalheDoDesfazer(tipo, 'livre', status, 3)
         expect(frase).toMatch(/com o ouro dela/)
         expect(frase).not.toMatch(/sem mexer no ouro/)
         expect(frase).not.toMatch(/Todas as marcações/)
@@ -72,15 +72,37 @@ describe('detalheDoDesfazer', () => {
   })
 
   it('água parcial volta um copo e não mexe no ouro', () => {
-    expect(detalheDoDesfazer('diaria', 'agua', false, 5)).toBe('Volta um copo, sem mexer no ouro.')
+    expect(detalheDoDesfazer('diaria', 'agua', 'pendente', 5)).toBe(
+      'Volta um copo, sem mexer no ouro.',
+    )
   })
 
   it('água fechada derruba o dia inteiro, com o ouro', () => {
-    expect(detalheDoDesfazer('diaria', 'agua', true, 5)).toMatch(/Todas as marcações de hoje/)
+    expect(detalheDoDesfazer('diaria', 'agua', 'feito', 5)).toMatch(/Todas as marcações de hoje/)
   })
 
   it('rotina de uma vez só fala do ouro daquele check-in', () => {
-    expect(detalheDoDesfazer('diaria', 'livre', true, 1)).toBe('O ouro deste check-in volta atrás.')
+    expect(detalheDoDesfazer('diaria', 'livre', 'feito', 1)).toBe(
+      'O ouro deste check-in volta atrás.',
+    )
+  })
+
+  it('declaração aguardando o grupo diz que nada foi pago', () => {
+    const frase = detalheDoDesfazer('diaria', 'tela', 'em_validacao', 1)
+    expect(frase).toMatch(/Nada foi pago ainda/)
+    expect(frase).toMatch(/votos do grupo/)
+  })
+
+  it('declaração já validada avisa que o ouro volta atrás', () => {
+    // O bug: a folha prometia "Nada foi pago ainda" para a declaração que o
+    // grupo validou e pagou, e a pessoa confirmava perdendo o ouro de verdade.
+    const frase = detalheDoDesfazer('diaria', 'tela', 'feito', 1)
+    expect(frase).not.toMatch(/Nada foi pago/)
+    expect(frase).toMatch(/ouro/)
+  })
+
+  it('declaração reprovada também não promete que nada foi pago', () => {
+    expect(detalheDoDesfazer('diaria', 'tela', 'atrasado', 1)).not.toMatch(/Nada foi pago/)
   })
 })
 

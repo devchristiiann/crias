@@ -59,6 +59,21 @@ const ERROS_CHECK_IN: Record<string, string> = {
   fora_da_faixa: 'A última faixa de horário já passou. Este check-in não conta mais hoje.',
   ocorrencia_futura: 'Este desafio ainda não abriu.',
   ocorrencia_invalida: 'Não encontramos este desafio.',
+  minutos_invalidos: 'Informe quanto tempo você usou, de 1 minuto até 24 horas.',
+  // Declarada uma vez, declarada de vez: redeclarar por cima trocaria o número
+  // com os votos já dados. Quem errou o tempo desfaz enquanto ninguém votou.
+  ja_declarada: 'Você já declarou esta rotina hoje. O grupo está votando.',
+  // Vem do Concluir de dentro da notificação, que não tem como pedir tempo nem
+  // print. O caminho certo é abrir a rotina no app.
+  precisa_declarar: 'Esta rotina pede o tempo de uso e o print. Abra a rotina para declarar.',
+}
+
+/**
+ * O mesmo código com outro significado quando a declaração leva minutos: em
+ * `tela` a faixa não passou da hora, foi o tempo de uso que passou do limite.
+ */
+const ERROS_DECLARACAO: Record<string, string> = {
+  fora_da_faixa: 'Esse tempo passa da última faixa. Este check-in não conta hoje.',
 }
 
 /** Erros de `desfazer_check_in` traduzidos. O codigo cru nunca vai para a tela. */
@@ -69,6 +84,13 @@ const ERROS_DESFAZER: Record<string, string> = {
   fora_do_dia: 'Só dá para desmarcar no mesmo dia.',
   saldo_gasto: 'Você já gastou o ouro deste check-in. Não dá para desmarcar.',
   sem_contabilidade: 'Este check-in é anterior à opção de desmarcar.',
+  // A enquete já fechou. Desfazer devolveria a ocorrência ao estado de declarar,
+  // que é abrir outra enquete sobre o mesmo dia.
+  ja_validada: 'O grupo já decidiu esta declaração. Ela fica como está.',
+  // Enquete com voto dado. Desfazer apagava os votos e reabria o prazo, então
+  // quem foi contestado derrubava a contestação. A frase diz o motivo sem
+  // acusar: quem errou o número só perdeu a janela de corrigir.
+  ja_votada: 'Alguém já votou nesta declaração. Dá para desfazer só antes do primeiro voto.',
 }
 
 export function useCheckIn() {
@@ -79,9 +101,12 @@ export function useCheckIn() {
     mutationFn: async ({
       ocorrenciaId,
       foto,
+      minutos,
     }: {
       ocorrenciaId: string
       foto?: File | null
+      /** Tempo de uso declarado, só no módulo `tela`. O servidor valida. */
+      minutos?: number | null
     }): Promise<ResultadoCheckIn> => {
       let caminho: string | null = null
       let fotoFalhou = false
@@ -117,14 +142,18 @@ export function useCheckIn() {
       const { data, error } = await supabase.rpc('check_in', {
         p_occ: ocorrenciaId,
         p_foto: caminho,
+        p_minutos: minutos ?? null,
       })
       if (error) throw error
       const resultado = data as ResultadoCheckIn
       // A RPC devolve falha dentro de um 200. Sem lancar aqui, o `onSuccess`
       // roda em cima de um erro e invalida cache por nada.
       if (resultado?.error) {
+        const declarado = minutos != null ? ERROS_DECLARACAO[resultado.error] : undefined
         throw new Error(
-          ERROS_CHECK_IN[resultado.error] ?? 'Não deu para marcar agora. Tente de novo.',
+          declarado ??
+            ERROS_CHECK_IN[resultado.error] ??
+            'Não deu para marcar agora. Tente de novo.',
         )
       }
       return { ...resultado, fotoFalhou }

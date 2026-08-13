@@ -9,10 +9,19 @@ export interface OcorrenciaHoje {
   id: string
   data_sp: string
   vence_em: string
-  status: 'pendente' | 'feito' | 'atrasado'
+  /**
+   * `em_validacao` e a declaracao esperando o grupo votar. Nada foi pago, a
+   * ofensiva nao andou e a vida nao foi cobrada: e um quarto estado, nao um
+   * "feito" com enfeite.
+   */
+  status: 'pendente' | 'feito' | 'atrasado' | 'em_validacao'
   vezes_feitas: number
   vezes_alvo: number
   foto_path: string | null
+  /** Minutos de uso declarados. Só o módulo de tela preenche. */
+  minutos_declarados: number | null
+  /** Prazo de 48h da enquete. Null fora de `em_validacao`. */
+  validacao_ate: string | null
   /**
    * Dia da última marcação, em São Paulo. Só "N vezes por semana" e "N vezes por
    * mês" olham para isto: a ocorrência cobre a janela inteira e vale uma
@@ -49,6 +58,8 @@ interface LinhaOcorrencia {
   vezes_feitas: number
   vezes_alvo: number
   foto_path: string | null
+  minutos_declarados: number | null
+  validacao_ate: string | null
   ultima_marcacao_sp: string | null
   habits: {
     id: string
@@ -62,6 +73,17 @@ interface LinhaOcorrencia {
     group_id: string | null
     groups: { nome: string; dono_id: string; exige_foto: boolean } | null
   }
+}
+
+/**
+ * Ordem da lista: o que ainda depende da pessoa vem primeiro, depois o que
+ * depende do grupo, e por ultimo o que ja acabou.
+ */
+const ORDEM_STATUS: Record<OcorrenciaHoje['status'], number> = {
+  pendente: 0,
+  atrasado: 0,
+  em_validacao: 1,
+  feito: 2,
 }
 
 export function useOcorrenciasHoje() {
@@ -82,6 +104,7 @@ export function useOcorrenciasHoje() {
         .from('occurrences')
         .select(
           `id, data_sp, vence_em, status, vezes_feitas, vezes_alvo, foto_path, ultima_marcacao_sp,
+           minutos_declarados, validacao_ate,
            habits!inner ( id, titulo, icone, ouro_base, regra_frequencia, modulo, config,
                           lembrete_hora, group_id, groups ( nome, dono_id, exige_foto ) )`,
         )
@@ -148,6 +171,8 @@ export function useOcorrenciasHoje() {
             vezes_feitas: l.vezes_feitas,
             vezes_alvo: l.vezes_alvo,
             foto_path: l.foto_path,
+            minutos_declarados: l.minutos_declarados,
+            validacao_ate: l.validacao_ate,
             ultima_marcacao_sp: l.ultima_marcacao_sp,
             habitId: l.habits.id,
             titulo: l.habits.titulo,
@@ -167,7 +192,12 @@ export function useOcorrenciasHoje() {
           }
         })
         .sort((a, b) => {
-          if (a.status !== b.status) return a.status === 'feito' ? 1 : -1
+          // Rank, e nao comparacao de igualdade: com quatro status, um
+          // `a.status !== b.status` devolvia -1 nos dois sentidos entre pendente
+          // e atrasado, e a ordem saia diferente a cada rodada do `sort`.
+          if (ORDEM_STATUS[a.status] !== ORDEM_STATUS[b.status]) {
+            return ORDEM_STATUS[a.status] - ORDEM_STATUS[b.status]
+          }
           const ha = a.lembrete ?? '99:99'
           const hb = b.lembrete ?? '99:99'
           if (ha !== hb) return ha < hb ? -1 : 1

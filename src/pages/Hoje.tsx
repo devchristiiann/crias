@@ -12,6 +12,7 @@ import { Folha } from '@/components/ui/Folha'
 import { useHabitosRuins } from '@/hooks/useHabitosRuins'
 import { useOcorrenciasHoje } from '@/hooks/useOcorrenciasHoje'
 import { usePerfil } from '@/hooks/usePerfil'
+import { emValidacao } from '@/lib/modulos'
 
 export function Hoje() {
   const { data: ocorrencias, isPending, isError, refetch } = useOcorrenciasHoje()
@@ -28,11 +29,17 @@ export function Hoje() {
     if (daUrl) setSelecionada(daUrl)
   }, [daUrl])
 
-  const { pendentes, concluidas } = useMemo(() => {
+  const { pendentes, concluidas, aFazer } = useMemo(() => {
     const lista = ocorrencias ?? []
+    const pendentes = lista.filter((o) => o.status !== 'feito')
     return {
-      pendentes: lista.filter((o) => o.status !== 'feito'),
+      pendentes,
       concluidas: lista.filter((o) => o.status === 'feito'),
+      // Declaração aguardando o grupo já saiu das mãos da pessoa: o card
+      // continua na lista, porque ela precisa ver que declarou e está
+      // esperando, mas contar como pendência é cobrar de novo o que já foi
+      // feito e não pode mais ser tocado.
+      aFazer: pendentes.filter((o) => !emValidacao(o.status)).length,
     }
   }, [ocorrencias])
 
@@ -55,9 +62,9 @@ export function Hoje() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Hoje</h1>
           <p className="truncate text-sm text-muted-foreground">
-            {pendentes.length === 0 && concluidas.length > 0
+            {aFazer === 0 && pendentes.length + concluidas.length > 0
               ? 'Tudo feito. Volte amanhã.'
-              : `${pendentes.length} para fazer`}
+              : `${aFazer} para fazer`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

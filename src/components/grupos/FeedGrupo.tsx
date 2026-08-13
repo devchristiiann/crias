@@ -1,6 +1,12 @@
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { EnquetesGrupo } from '@/components/grupos/EnquetesGrupo'
+import {
+  FotoAmpliada,
+  FotoComprovacao,
+  type FotoAberta,
+} from '@/components/grupos/FotoComprovacao'
 import { ID_CONTEUDO } from '@/components/layout/AppShell'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { useFeedGrupo, type ItemFeed } from '@/hooks/useFeedGrupo'
@@ -14,69 +20,6 @@ import { iconeDoHabito } from '@/lib/icones'
  */
 const ANTECEDENCIA = '300px'
 
-/**
- * Foto aberta em tela cheia sobre `<dialog>` nativo, como a `Folha`.
- *
- * O elemento nativo ja traz backdrop, ESC e trava de foco. A guarda no
- * `showModal` e a mesma paga na `Folha`: Safari antigo lanca, e sem ela o React
- * derruba a arvore inteira e a pessoa fica com tela branca no lugar da foto.
- */
-function FotoAmpliada({
-  foto,
-  aoFechar,
-}: {
-  foto: { url: string; alt: string } | null
-  aoFechar: () => void
-}) {
-  const ref = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialogo = ref.current
-    if (!dialogo) return
-    try {
-      if (foto && !dialogo.open) dialogo.showModal()
-      if (!foto && dialogo.open) dialogo.close()
-    } catch {
-      dialogo.open = Boolean(foto)
-    }
-  }, [foto])
-
-  return (
-    <dialog
-      ref={ref}
-      onClose={aoFechar}
-      onClick={aoFechar}
-      className="max-h-none max-w-none bg-transparent p-0 backdrop:bg-black/85"
-      /* `inset: 0` no lugar de `100vw`: em tela com barra de rolagem classica a
-         largura da viewport passa da largura util e nasce scroll horizontal. */
-      style={{ inset: 0, width: 'auto', height: 'auto', margin: 0 }}
-    >
-      <div className="flex h-full w-full items-center justify-center p-3">
-        {foto && (
-          // Toque no fundo fecha, toque na propria foto nao: quem abriu a
-          // comprovacao quer olhar para ela, e o dedo cai em cima dela.
-          <img
-            src={foto.url}
-            alt={foto.alt}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-full max-w-full rounded-lg object-contain"
-          />
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={aoFechar}
-        aria-label="Fechar"
-        className="absolute right-3 flex size-11 items-center justify-center rounded-full
-                   bg-black/60 text-white"
-        style={{ top: 'calc(0.75rem + env(safe-area-inset-top))' }}
-      >
-        <X className="size-5" />
-      </button>
-    </dialog>
-  )
-}
-
 function CartaoFeed({
   item,
   membro,
@@ -86,7 +29,7 @@ function CartaoFeed({
   item: ItemFeed
   membro: MembroGrupo | undefined
   desafio: DetalheGrupo['desafios'][number] | undefined
-  aoAmpliar: (foto: { url: string; alt: string }) => void
+  aoAmpliar: (foto: FotoAberta) => void
 }) {
   const Icone = iconeDoHabito(desafio?.icone ?? '')
   const nome = membro?.nome ?? 'Alguém'
@@ -119,24 +62,7 @@ function CartaoFeed({
         </span>
       </div>
 
-      {fotoUrl && (
-        <button
-          type="button"
-          onClick={() => aoAmpliar({ url: fotoUrl, alt })}
-          className="block w-full"
-          aria-label={`Ampliar ${alt.toLowerCase()}`}
-        >
-          {/* `loading="lazy"` e o que mantem o feed barato: foto de item que a
-              pessoa nunca rolou ate ver nao chega a ser baixada. */}
-          <img
-            src={fotoUrl}
-            alt={alt}
-            loading="lazy"
-            decoding="async"
-            className="h-44 w-full bg-muted object-cover"
-          />
-        </button>
-      )}
+      {fotoUrl && <FotoComprovacao url={fotoUrl} alt={alt} aoAmpliar={aoAmpliar} />}
 
       <p className="flex items-center gap-2 px-3 py-2.5 text-sm">
         <Check className="size-4 shrink-0 text-success" />
@@ -159,7 +85,7 @@ export function FeedGrupo({ grupo }: { grupo: DetalheGrupo }) {
   const ids = useMemo(() => grupo.desafios.map((d) => d.id), [grupo.desafios])
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useFeedGrupo(grupo.id, ids)
-  const [ampliada, setAmpliada] = useState<{ url: string; alt: string } | null>(null)
+  const [ampliada, setAmpliada] = useState<FotoAberta | null>(null)
   const sentinela = useRef<HTMLDivElement>(null)
 
   const membros = useMemo(() => new Map(grupo.membros.map((m) => [m.id, m])), [grupo.membros])
@@ -196,45 +122,53 @@ export function FeedGrupo({ grupo }: { grupo: DetalheGrupo }) {
   if (grupo.desafios.length === 0) return null
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Atividade
-      </h2>
+    <div className="space-y-5">
+      {/* Enquete aberta vem antes da atividade: e a unica coisa desta tela que
+          tem prazo, e rolar ate ela seria o mesmo que nao existir. */}
+      <EnquetesGrupo grupo={grupo} />
 
-      {isPending && (
-        <div className="flex justify-center py-6">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Atividade
+        </h2>
 
-      {isError && <EstadoErro mensagem="Não deu para carregar a atividade." aoTentarDeNovo={refetch} />}
+        {isPending && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
 
-      {!isPending && !isError && itens.length === 0 && (
-        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-          Ninguém concluiu nada ainda. O primeiro check-in aparece aqui.
-        </p>
-      )}
+        {isError && (
+          <EstadoErro mensagem="Não deu para carregar a atividade." aoTentarDeNovo={refetch} />
+        )}
 
-      <ul className="space-y-3">
-        {itens.map((item) => (
-          <CartaoFeed
-            key={item.id}
-            item={item}
-            membro={membros.get(item.usuarioId)}
-            desafio={desafios.get(item.habitId)}
-            aoAmpliar={setAmpliada}
-          />
-        ))}
-      </ul>
+        {!isPending && !isError && itens.length === 0 && (
+          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+            Ninguém concluiu nada ainda. O primeiro check-in aparece aqui.
+          </p>
+        )}
 
-      <div ref={sentinela} aria-hidden="true" />
-      {isFetchingNextPage && (
-        <div className="flex justify-center py-3">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      )}
+        <ul className="space-y-3">
+          {itens.map((item) => (
+            <CartaoFeed
+              key={item.id}
+              item={item}
+              membro={membros.get(item.usuarioId)}
+              desafio={desafios.get(item.habitId)}
+              aoAmpliar={setAmpliada}
+            />
+          ))}
+        </ul>
 
-      <FotoAmpliada foto={ampliada} aoFechar={() => setAmpliada(null)} />
-    </section>
+        <div ref={sentinela} aria-hidden="true" />
+        {isFetchingNextPage && (
+          <div className="flex justify-center py-3">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        <FotoAmpliada foto={ampliada} aoFechar={() => setAmpliada(null)} />
+      </section>
+    </div>
   )
 }

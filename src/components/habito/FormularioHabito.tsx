@@ -14,6 +14,8 @@ import {
   MAX_FAIXAS,
   OURO_MAXIMO,
   configSchema,
+  ehModuloDeGrupo,
+  ehModuloDuracao,
   ehModuloHorario,
   erroConfig,
   iconeModulo,
@@ -29,8 +31,11 @@ type TipoHabito = 'bom' | 'ruim'
 
 /**
  * Um seletor so. O icone deixou de ser enfeite e virou o tipo da rotina: as
- * duas primeiras opcoes sao a rotina livre de sempre, as tres ultimas trocam o
+ * duas primeiras opcoes sao a rotina livre de sempre, as quatro ultimas trocam o
  * corpo do formulario pelo editor daquele modulo.
+ *
+ * `Menos tela` so entra quando a rotina nasce dentro de um grupo: fora dele nao
+ * existe quem valide a declaracao, e o check-in ficaria esperando para sempre.
  */
 const OPCOES: { id: string; modulo: Modulo; tipo: TipoHabito; rotulo: string }[] = [
   { id: 'fazer', modulo: 'livre', tipo: 'bom', rotulo: 'Quero fazer' },
@@ -38,6 +43,7 @@ const OPCOES: { id: string; modulo: Modulo; tipo: TipoHabito; rotulo: string }[]
   { id: 'acordar', modulo: 'acordar', tipo: 'bom', rotulo: rotuloModulo('acordar') },
   { id: 'dormir', modulo: 'dormir', tipo: 'bom', rotulo: rotuloModulo('dormir') },
   { id: 'agua', modulo: 'agua', tipo: 'bom', rotulo: rotuloModulo('agua') },
+  { id: 'tela', modulo: 'tela', tipo: 'bom', rotulo: rotuloModulo('tela') },
 ]
 
 const ICONES = [
@@ -51,9 +57,11 @@ const ICONES = [
   { id: 'wallet', rotulo: 'Dinheiro' },
 ] as const
 
-const FAIXAS_INICIAIS: Record<'acordar' | 'dormir', Faixa[]> = {
+const FAIXAS_INICIAIS: Record<'acordar' | 'dormir' | 'tela', Faixa[]> = {
   acordar: [{ ate: '06:00', ouro: OURO_MAXIMO }],
   dormir: [{ ate: '23:00', ouro: OURO_MAXIMO }],
+  // Em `tela` o valor e duracao: uma hora de uso, nao uma hora da manha.
+  tela: [{ ate: '01:00', ouro: OURO_MAXIMO }],
 }
 
 const CAMPO = `h-11 w-full rounded-lg border border-input bg-card px-3
@@ -97,9 +105,14 @@ export function FormularioHabito({
   const deEvitar = tipo === 'ruim'
   const ehLivre = modulo === 'livre'
   const ehHorario = ehModuloHorario(modulo)
+  const ehTela = ehModuloDuracao(modulo)
   const ehAgua = modulo === 'agua'
+  // Mesmo editor de faixas para relogio e para duracao. So o rotulo muda.
+  const temFaixas = ehHorario || ehTela
+  const emGrupo = Boolean(grupoId)
+  const opcoes = emGrupo ? OPCOES : OPCOES.filter((o) => !ehModuloDeGrupo(o.modulo))
 
-  const config: ConfigModulo = ehHorario
+  const config: ConfigModulo = temFaixas
     ? { faixas }
     : ehAgua
       ? { vezes: copos, lembretes: alarmes }
@@ -115,7 +128,7 @@ export function FormularioHabito({
   function trocarOpcao(nova: (typeof OPCOES)[number]) {
     setOpcao(nova)
     setErro(null)
-    if (nova.modulo === 'acordar' || nova.modulo === 'dormir') {
+    if (nova.modulo === 'acordar' || nova.modulo === 'dormir' || nova.modulo === 'tela') {
       setFaixas(FAIXAS_INICIAIS[nova.modulo])
     }
   }
@@ -146,7 +159,7 @@ export function FormularioHabito({
         // A primeira faixa e a que paga mais, e e ela que vira o `ouro_base`
         // para o resto do sistema seguir funcionando sem saber de faixa.
         // Agua paga uma vez ao fechar o dia, entao o valor e fixo no teto.
-        p_ouro_base: ehHorario ? faixas[0].ouro : ehAgua ? OURO_MAXIMO : ouroBase,
+        p_ouro_base: temFaixas ? faixas[0].ouro : ehAgua ? OURO_MAXIMO : ouroBase,
         p_group_id: grupoId ?? null,
         p_tipo: tipo,
         p_pune_ouro: deEvitar && puneOuro,
@@ -182,7 +195,7 @@ export function FormularioHabito({
       <div className="space-y-1.5">
         <span className="block text-sm font-medium">Tipo</span>
         <div className="flex flex-wrap gap-2">
-          {OPCOES.map((o) => {
+          {opcoes.map((o) => {
             const Icone = iconeModulo(o.modulo)
             const ativa = o.id === opcao.id
             return (
@@ -204,6 +217,13 @@ export function FormularioHabito({
             )
           })}
         </div>
+        {/* Uma linha, e so fora de grupo: quem esta dentro ve a opcao e nao
+            precisa de explicacao nenhuma. */}
+        {!emGrupo && (
+          <p className="text-xs text-muted-foreground">
+            {rotuloModulo('tela')} só existe em rotina de grupo, porque é o grupo que valida.
+          </p>
+        )}
       </div>
 
       <Campo
@@ -253,18 +273,28 @@ export function FormularioHabito({
         </div>
       )}
 
-      {ehHorario && (
+      {temFaixas && (
         <div className="space-y-2">
-          <span className="block text-sm font-medium">Faixas de horário</span>
+          <span className="block text-sm font-medium">
+            {ehTela ? 'Até quanto tempo de uso' : 'Faixas de horário'}
+          </span>
           <p className="text-xs text-muted-foreground">
-            {modulo === 'acordar' ? 'Quanto mais cedo, mais ouro.' : 'Cada faixa paga menos.'}
+            {ehTela
+              ? 'Quanto menos tempo, mais ouro.'
+              : modulo === 'acordar'
+                ? 'Quanto mais cedo, mais ouro.'
+                : 'Cada faixa paga menos.'}
           </p>
           {faixas.map((faixa, i) => (
             <div key={i} className="grid grid-cols-[1fr_4.5rem_2.75rem] items-center gap-2">
               <input
                 type="time"
                 value={faixa.ate}
-                aria-label={`Até que horas na faixa ${i + 1}`}
+                aria-label={
+                  ehTela
+                    ? `Até quanto tempo de uso na faixa ${i + 1}`
+                    : `Até que horas na faixa ${i + 1}`
+                }
                 onChange={(e) => mudarFaixa(i, { ate: e.target.value })}
                 className={CAMPO}
               />
@@ -299,10 +329,14 @@ export function FormularioHabito({
               className="w-full"
               onClick={() => {
                 const ultima = faixas[faixas.length - 1]
+                const proxima = somarHora(ultima.ate, 60)
                 setFaixas([
                   ...faixas,
                   {
-                    ate: somarHora(ultima.ate, 60),
+                    // `somarHora` da a volta na meia noite, que e o certo na
+                    // madrugada do dormir e o errado na duracao: 23:00 de uso
+                    // mais uma hora nao volta para 00:00.
+                    ate: ehTela && proxima <= ultima.ate ? '23:59' : proxima,
                     ouro: Math.max(1, ultima.ouro - 3),
                   },
                 ])
@@ -312,7 +346,9 @@ export function FormularioHabito({
             </Botao>
           )}
           <p className="text-xs text-muted-foreground">
-            Depois da última faixa a rotina não conta e vira atrasada.
+            {ehTela
+              ? 'Acima da última faixa o check-in é recusado.'
+              : 'Depois da última faixa a rotina não conta e vira atrasada.'}
           </p>
         </div>
       )}
