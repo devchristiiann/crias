@@ -1,0 +1,35 @@
+{
+  "id": "/",
+  "name": "Crias",
+  "short_name": "Crias",
+  "description": "Hábitos e metas em grupo, com personagem, ouro e sequência diária.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/hoje",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e04545",
+  "theme_color": "#e04545",
+  "categories": ["lifestyle", "health", "productivity"],
+  "icons": [
+    {
+      "src": "/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icone-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

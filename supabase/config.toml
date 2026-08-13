@@ -1,0 +1,19 @@
+project_id = "oeaftenwsmbkdxqseqrb"
+
+# verify_jwt = false nas duas funcoes, de proposito.
+#
+# push-dispatch e chamada pelo pg_cron, que nao tem JWT de usuario: ela se
+# protege com o header x-internal-secret comparado em tempo constante.
+# quick-check-in e chamada pelo Service Worker, que tambem nao carrega sessao:
+# ela se protege com o token_rapido de uso unico que so existe dentro da carga
+# cifrada do web push.
+#
+# ATENCAO: este toggle ja se auto reativou em redeploy em outros projetos
+# (supabase/supabase#43608, supabase/cli#4059). Sempre deployar com a flag
+# --no-verify-jwt explicita e conferir depois.
+
+[functions.push-dispatch]
+verify_jwt = false
+
+[functions.quick-check-in]
+verify_jwt = false
