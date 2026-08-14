@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Botao } from '@/components/ui/Botao'
 import { Confirmar } from '@/components/ui/Confirmar'
+import { SPRITES_UI } from '@/lib/catalogo'
 import { PRECO_CURA, PRECO_ESCUDO } from '@/lib/modulos'
 import { supabase } from '@/lib/supabase'
 
@@ -24,14 +25,17 @@ const ERROS: Record<string, string> = {
 
 /**
  * Arte de `scripts/gerar-sprites-ui.mjs`. Sao icone de tela, nao peca de loja:
- * nao tem id em `avatar_items`, nao tem preco e nao passam pelo catalogo.
+ * nao tem id em `avatar_items`, nao tem preco e nao entram em `CATALOGO`.
  *
  * Entram como sprite e nao como icone de traco porque escudo e cura sao itens
  * do jogo, e o jogo inteiro e pixel art. Ficam em 20px: em 16 o desenho do
  * escudo vira mancha, e 24 empurra a altura da linha.
+ *
+ * O caminho vem de `SPRITES_UI` e nao escrito aqui porque la ele carrega o
+ * carimbo de versao do conteudo. Escrito a mao, redesenhar o escudo nao mudaria
+ * a URL e o aparelho continuaria mostrando o desenho antigo.
  */
-const ESCUDO = '/sprites/ui/escudo.png'
-const POCAO = '/sprites/ui/pocao-vida.png'
+const { escudo: ESCUDO, pocao: POCAO } = SPRITES_UI
 const SPRITE = 'size-5 shrink-0'
 /**
  * O mesmo sprite, sobre a propria casa.

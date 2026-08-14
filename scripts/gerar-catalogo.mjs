@@ -1,6 +1,22 @@
+import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 const RAIZ='~/Desktop/Kortx/PROJETO - Crias'
 const m=JSON.parse(readFileSync(RAIZ+'/public/sprites/manifesto.json','utf8'))
+
+/**
+ * Carimbo de versao pelo CONTEUDO do PNG, nao pela data nem por contador.
+ *
+ * O nome do arquivo nunca pode mudar: o id vem junto dele e e o mesmo de
+ * `avatar_items`, entao renomear apagaria a posse de quem ja comprou. Sem nome
+ * novo, arte retrabalhada volta pela mesma URL e qualquer cache no caminho
+ * continua entregando o desenho velho, que foi exatamente o que aconteceu no
+ * iPhone do dono depois do recorte dos pedestais.
+ *
+ * A saida e a URL com `?v=<8 hex do sha256>`. O disco e o id ficam intactos, e
+ * so a URL que o app pede muda, quando e somente quando os bytes mudam.
+ */
+const versao=(arquivo)=>createHash('sha256').update(readFileSync(RAIZ+'/public'+arquivo)).digest('hex').slice(0,8)
+const versionar=(arquivo)=>`${arquivo}?v=${versao(arquivo)}`
 
 const FAMILIA={pes:'Pessoas',anf:'Animais fofos',anp:'Animais perigosos',mof:'Monstros fofos',mop:'Monstros perigosos',deu:'Deuses e mitologia',fol:'Folclore brasileiro',rob:'Robôs',atl:'Lendas do esporte',cen:'Cenários',fun:'Fundos de perfil',ace:'Acessórios'}
 // Os oito que o Gustavo apontou como os melhores custam mais que o resto.
@@ -35,7 +51,7 @@ const linhas=m.map(r=>{
     : slot==='cenario'
       ? `, ancora: '${CHAO.has(r.id)?'chao':'cena'}'`
       : (r.encaixe ? `, encaixe: '${r.encaixe}'` : '')
-  return `  { id: '${r.id}', nome: ${JSON.stringify(r.nome)}, slot: '${slot}', familia: ${JSON.stringify(fam)}, custo: ${preco}, arquivo: '${r.arquivo}', largura: ${r.saida.split('x')[0]}, altura: ${r.saida.split('x')[1]}${extra} },`
+  return `  { id: '${r.id}', nome: ${JSON.stringify(r.nome)}, slot: '${slot}', familia: ${JSON.stringify(fam)}, custo: ${preco}, arquivo: '${versionar(r.arquivo)}', largura: ${r.saida.split('x')[0]}, altura: ${r.saida.split('x')[1]}${extra} },`
 }).sort()
 
 const ts=`/**
@@ -97,6 +113,20 @@ export function pecasDoSlot(slot: Slot) {
 export const LADO_SPRITE = 128
 
 export const BASES_ANTIGAS = ['base-01', 'base-02', 'base-03', 'base-04', 'base-05', 'base-06']
+
+/**
+ * Sprites de tela de \`scripts/gerar-sprites-ui.mjs\`. Ficam FORA de \`CATALOGO\`
+ * de proposito: nao tem id em \`avatar_items\`, nao tem preco e nao se compra.
+ * Entrar na lista de cima os transformaria em peca de loja que nao existe.
+ *
+ * Estao aqui, e nao escritos na tela, so para receberem o mesmo carimbo de
+ * versao das outras artes. Sem ele, o escudo e a pocao ficam presos no cache
+ * do aparelho quando o desenho muda, igual aos pedestais ficaram.
+ */
+export const SPRITES_UI = {
+  escudo: '${versionar('/sprites/ui/escudo.png')}',
+  pocao: '${versionar('/sprites/ui/pocao-vida.png')}',
+} as const
 `
 writeFileSync(RAIZ+'/src/lib/catalogo.ts', ts)
 console.log('catalogo.ts com', m.length, 'pecas')

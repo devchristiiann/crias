@@ -4,12 +4,25 @@
  * app so cobre `src` e nao carrega os tipos do Node. Mover para ca sai mais
  * barato que instalar @types/node inteiro so por causa de um teste.
  */
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CATALOGO, PERSONAGEM_PADRAO, POR_ID, pecasDoSlot } from '../src/lib/catalogo'
+import { CATALOGO, PERSONAGEM_PADRAO, POR_ID, SPRITES_UI, pecasDoSlot } from '../src/lib/catalogo'
 
 const PUBLICO = join(process.cwd(), 'public')
+
+/**
+ * O `arquivo` do catalogo e URL, nao caminho de disco: ele carrega `?v=<hash>`
+ * para o cache do aparelho largar a arte velha quando o desenho muda. Quem le
+ * o disco tira a busca antes.
+ */
+const noDisco = (url: string) => join(PUBLICO, url.split('?')[0])
+const carimbo = (url: string) => url.split('?v=')[1] ?? ''
+const hashDoArquivo = (url: string) =>
+  createHash('sha256').update(readFileSync(noDisco(url))).digest('hex').slice(0, 8)
+
+const TODAS_AS_URLS = [...CATALOGO.map((p) => p.arquivo), ...Object.values(SPRITES_UI)]
 
 describe('catalogo de arte', () => {
   it('tem id unico em toda peca', () => {
@@ -20,8 +33,25 @@ describe('catalogo de arte', () => {
   // O catalogo aponta caminho de arquivo. Caminho errado nao quebra o build,
   // quebra em silencio na tela do usuario com um sprite invisivel.
   it('aponta para um PNG que existe mesmo', () => {
-    const sumidos = CATALOGO.filter((p) => !existsSync(join(PUBLICO, p.arquivo))).map((p) => p.id)
+    const sumidos = CATALOGO.filter((p) => !existsSync(noDisco(p.arquivo))).map((p) => p.id)
     expect(sumidos).toEqual([])
+  })
+
+  // O nome do arquivo nunca muda, porque o id dele e o mesmo de `avatar_items`
+  // e renomear apagaria a posse de quem comprou. Entao a unica coisa que faz o
+  // aparelho buscar a arte de novo e este carimbo. Carimbo velho e arte nova na
+  // producao com desenho antigo na tela, que foi a reclamacao do dono.
+  it('carimba toda arte com a versao do conteudo do proprio PNG', () => {
+    const erradas = TODAS_AS_URLS.filter((url) => carimbo(url) !== hashDoArquivo(url))
+    expect(erradas).toEqual([])
+  })
+
+  // Sprite de tela nao e peca de loja: se um dia escorregar para dentro do
+  // CATALOGO, vira item comprável sem linha em `avatar_items`.
+  it('mantem escudo e pocao fora das pecas compraveis', () => {
+    const caminhos = CATALOGO.map((p) => p.arquivo.split('?')[0])
+    expect(caminhos.filter((c) => c.startsWith('/sprites/ui/'))).toEqual([])
+    expect(Object.values(SPRITES_UI).every((url) => existsSync(noDisco(url)))).toBe(true)
   })
 
   it('cobre os quatro slots', () => {
