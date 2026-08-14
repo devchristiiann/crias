@@ -18,8 +18,13 @@ const m=JSON.parse(readFileSync(RAIZ+'/public/sprites/manifesto.json','utf8'))
 const versao=(arquivo)=>createHash('sha256').update(readFileSync(RAIZ+'/public'+arquivo)).digest('hex').slice(0,8)
 const versionar=(arquivo)=>`${arquivo}?v=${versao(arquivo)}`
 
-const FAMILIA={pes:'Pessoas',anf:'Animais fofos',anp:'Animais perigosos',mof:'Monstros fofos',mop:'Monstros perigosos',deu:'Deuses e mitologia',fol:'Folclore brasileiro',rob:'Robôs',atl:'Lendas do esporte',cen:'Cenários',fun:'Fundos de perfil',ace:'Acessórios'}
+const FAMILIA={pes:'Pessoas',anf:'Animais fofos',anp:'Animais perigosos',mof:'Monstros fofos',mop:'Monstros perigosos',deu:'Deuses e mitologia',fol:'Folclore brasileiro',rob:'Robôs',atl:'Lendas do esporte',cri:'Crias da casa',cen:'Cenários',fun:'Fundos de perfil',ace:'Acessórios'}
 // Os oito que o Gustavo apontou como os melhores custam mais que o resto.
+//
+// A familia `cri` e a excecao: o preco nao foi escolhido aqui, ele veio escrito
+// no nome do arquivo que o dono entregou, e por isso o `cri-5` passa dos 1500
+// que eram o teto ate agora. A unica trava real de preco no banco e
+// `avatar_items_custo_ouro_check`, que so exige `custo_ouro >= 0`.
 const PRECO={
   'anf-1':150,'anf-2':800,'anf-3':150,'anf-4':800,'anf-5':150,'anf-7':180,
   'anp-1':400,'anp-2':800,'anp-4':800,'anp-6':400,
@@ -30,6 +35,7 @@ const PRECO={
   'pes-1':300,'pes-2':300,'pes-3':150,'pes-4':300,'pes-5':150,'pes-6':150,
   'rob-1':200,'rob-3':250,'rob-4':300,
   'atl-1':1200,'atl-2':1200,'atl-3':1200,'atl-4':1200,'atl-5':1200,
+  'cri-1':1500,'cri-2':1500,'cri-3':1500,'cri-4':1500,'cri-5':2500,
   'cen-1':100,'cen-2':150,'cen-3':400,'cen-4':250,'cen-5':250,'cen-6':250,'cen-7':400,'cen-10':700,
   'fun-1':1500,'fun-2':1500,'fun-3':1500,'fun-4':1500,
   'ace-1':400,'ace-2':250,'ace-3':250,'ace-10':220,'ace-11':220,'ace-12':350,'ace-14':300,'ace-15':400,'ace-16':700,

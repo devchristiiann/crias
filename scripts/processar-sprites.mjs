@@ -13,11 +13,13 @@
  *  4. Compressao. Paleta indexada, que e onde pixel art fica em poucos KB.
  */
 import sharp from 'sharp'
-import { readdirSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+const RAIZ = '~/Desktop/Kortx/PROJETO - Crias'
 const ENTRADA = '~/Downloads'
-const SAIDA = '~/Desktop/Kortx/PROJETO - Crias/public/sprites'
+const SAIDA = join(RAIZ, 'public/sprites')
+const MANIFESTO = join(SAIDA, 'manifesto.json')
 
 /* Mapa gerado a partir da inspecao visual das folhas de contato. A chave e o
  * pedaco unico do nome que o Gemini gera. */
@@ -55,6 +57,18 @@ const MAPA = {
     '2lwxcv': ['fun-1', 'Portal Celeste'], 'cnrd2b': ['fun-2', 'Caverna de Lava'],
     'dbj0hv': ['fun-3', 'Ruínas Douradas'], 'k8bsgr': ['fun-4', 'Bosque Encantado'],
   },
+  /* Arte que o dono desenhou, e nao o Gemini. Mora dentro do repositorio, em
+   * arte-origem/personagens, porque so o que esta versionado e reprocessavel:
+   * a pasta de Downloads que gerou os 36 primeiros ja nao existe mais, e por
+   * isso nenhum deles pode ser refeito hoje. O nome do arquivo carrega o nome
+   * visivel e o preco em ouro, e e dali que os dois saem. */
+  cria: {
+    'Lulu': ['cri-1', 'Lulu do dia a dia'],
+    'Nata': ['cri-2', 'Nata gameplay'],
+    'Goiabeira': ['cri-3', 'Goiabeira'],
+    'Gustavo Pai': ['cri-4', 'Gustavo Pai'],
+    'TH Dictador': ['cri-5', 'TH Dictador'],
+  },
   item: {
     '2098ho': ['ace-14', 'Raio'],            '3fs9o4': ['ace-15', 'Capa'],
     'ggz7kg': ['ace-3', 'Capacete Viking'],  'iw9kpc': ['ace-2', 'Chapéu de Mago'],
@@ -66,8 +80,26 @@ const MAPA = {
 
 /* Fundo de perfil e cena inteira, nao tem recorte nem silhueta: passa direto
  * para a reducao. Os outros tipos sao recortados. */
-const ALVO = { personagem: 128, atleta: 128, cenario: 128, item: 96, fundo: 384 }
+const ALVO = { personagem: 128, atleta: 128, cria: 128, cenario: 128, item: 96, fundo: 384 }
 const TOL_FUNDO = 46
+
+/**
+ * Tipos que passam por `assentar()`: tela de 128 por 128, pe na mesma linha,
+ * cabeca e mao medidas no pixel.
+ */
+const ASSENTADOS = new Set(['personagem', 'atleta', 'cria'])
+
+/**
+ * Piso de area por ILHA, em fracao da maior ilha, e nao por grupo.
+ *
+ * Fica em zero por padrao de proposito: a chuva de estrelas do cen-7 e dezenas
+ * de ilhas minusculas legitimas, e qualquer piso a apagaria. Ligado so em quem
+ * tem sujeira de origem, que na arte do dono e de tres tipos diferentes: o
+ * risco de linha de chao do Goiabeira, o brilho solto do Nata e os quadradinhos
+ * do xadrez de transparencia do Gustavo Pai, que ficam num cinza intermediario
+ * que nao bate com nenhuma das duas cores colhidas na borda.
+ */
+const PISO_ILHA = { cria: 0.005 }
 
 /**
  * Toda arte de personagem sai numa tela unica de 128 por 128, com o pe na
@@ -81,9 +113,45 @@ const TOL_FUNDO = 46
 const LADO_PADRAO = 128
 const CHAO = 124
 const TOPO = 6
-const FATOR_FAMILIA = { pes: 0.97, anf: 0.88, anp: 1.0, mof: 0.84, mop: 1.0, deu: 0.97, fol: 0.95, rob: 0.92, atl: 0.97 }
+const FATOR_FAMILIA = { pes: 0.97, anf: 0.88, anp: 1.0, mof: 0.84, mop: 1.0, deu: 0.97, fol: 0.95, rob: 0.92, atl: 0.97, cri: 0.97 }
 /* Bicho que flutua nao encosta o pe no chao. */
 const FLUTUA = new Set(['rob-3', 'mof-3', 'mof-5', 'fol-4', 'cen-7'])
+
+/**
+ * Correcao de ancora medida a olho no sprite pronto, ampliado.
+ *
+ * A medicao automatica supoe o que o prompt do Gemini garantia: personagem de
+ * pe, sem chapeu, com o braco solto ao lado do corpo. A arte do dono nao segue
+ * nada disso, e cada desvio quebra uma medida diferente:
+ *
+ *  - Busto nao tem cintura em 58% da altura: ali fica o peito. A mao medida
+ *    automaticamente cai no cotovelo ou no ombro, e o item da loja nasce
+ *    flutuando ao lado da cabeca.
+ *  - Mao ja ocupada (bengala, cartas, trofeu) empurra a coluna mais externa
+ *    para o objeto, e nao para a mao.
+ *
+ * `cabecaY` NAO e corrigido em quem ja usa chapeu, e isso foi conferido nas
+ * montagens, nao suposto: no topo do chapeu proprio o chapeu da loja cobre o
+ * de baixo, e descer a ancora para a testa so faria a peca da loja afundar no
+ * rosto. O panama do cri-1 e a boina do cri-5 continuam aparecendo por baixo.
+ *
+ * Os numeros sao pixels da tela de 128 por 128 ja assentada. Deixar em branco
+ * devolve a medicao automatica.
+ */
+const ANCORA_MANUAL = {
+  // Busto. A 58% da altura fica o peito, e a coluna mais externa dali e o
+  // cotovelo apoiado na mesa: o item nascia flutuando na altura do ombro.
+  // Vai para a mao que segura as cartas, unica mao visivel do desenho.
+  'cri-2': { cabecaLargura: 36, maoX: 66, maoY: 90 },
+  // De pe, mas de braco colado: a 58% a coluna mais externa e o cotovelo.
+  // A mao esta 22 px mais abaixo.
+  'cri-3': { cabecaX: 65, maoY: 92 },
+  'cri-4': { maoX: 82, maoY: 70 },
+  // Busto. A mao esquerda, a que segura a placa, e a que fica na silhueta;
+  // a direita e um punho em perspectiva no meio do peito e levaria o item
+  // para cima do rosto.
+  'cri-5': { maoX: 88, maoY: 82 },
+}
 
 /**
  * Onde cada acessorio encosta. Sem isso o Avatar so conhecia a ancora de
@@ -120,21 +188,29 @@ const dist = (b, a, c) =>
  */
 function coresDaBorda({ px, w, h }) {
   const reps = []
-  const ver = (x, y) => {
+  const ver = (x, y, lado) => {
     const o = (y * w + x) * 4
     for (const r of reps) {
       if (Math.abs(r[0] - px[o]) + Math.abs(r[1] - px[o + 1]) + Math.abs(r[2] - px[o + 2]) <= 70) {
         r[3]++
+        r[4] |= lado
         return
       }
     }
-    if (reps.length < 8) reps.push([px[o], px[o + 1], px[o + 2], 1])
+    if (reps.length < 8) reps.push([px[o], px[o + 1], px[o + 2], 1, lado])
   }
-  for (let x = 0; x < w; x += 2) { ver(x, 0); ver(x, h - 1) }
-  for (let y = 0; y < h; y += 2) { ver(0, y); ver(w - 1, y) }
+  for (let x = 0; x < w; x += 2) { ver(x, 0, 1); ver(x, h - 1, 2) }
+  for (let y = 0; y < h; y += 2) { ver(0, y, 4); ver(w - 1, y, 8) }
   // Cor que aparece em menos de 2% da borda e detalhe vazado, nao e fundo.
   const minimo = ((w + h) / 2) * 0.02
-  return reps.filter((r) => r[3] >= minimo)
+  // Cor que encosta em uma borda so e desenho cortado pela moldura, nao fundo.
+  //
+  // Nao e teoria: a calca preta do TH desce ate o fim do quadro e ocupa 8% da
+  // borda de baixo, mais que o minimo acima. Tratada como fundo, a inundacao
+  // subia por dentro dela e o personagem perdia a calca inteira. Fundo chapado
+  // de verdade cerca a arte, e por isso aparece em pelo menos dois lados.
+  const lados = (r) => (r[4] & 1) + ((r[4] >> 1) & 1) + ((r[4] >> 2) & 1) + ((r[4] >> 3) & 1)
+  return reps.filter((r) => r[3] >= minimo && lados(r) >= 2)
 }
 
 function ehFundo(px, o, reps, tol) {
@@ -221,13 +297,13 @@ function faixas({ px, w, h }) {
  * ilhas separadas de proposito, e escolher so a maior mutila o sprite. Some
  * apenas respingo, e o grupo do meio so e escolhido em quem veio triplicado.
  */
-function figuras({ px, w, h }, escolha) {
+function figuras({ px, w, h }, escolha, pisoIlha = 0) {
   const marca = new Int32Array(w * h).fill(-1)
   const ilhas = []
   for (let s = 0; s < w * h; s++) {
     if (px[s * 4 + 3] === 0 || marca[s] >= 0) continue
     const id = ilhas.length
-    const ilha = { area: 0, x0: w, x1: 0, y0: h, y1: 0 }
+    const ilha = { id, area: 0, x0: w, x1: 0, y0: h, y1: 0 }
     const fila = [s]
     marca[s] = id
     while (fila.length) {
@@ -251,11 +327,23 @@ function figuras({ px, w, h }, escolha) {
   }
   if (!ilhas.length) throw new Error('imagem ficou vazia depois de remover o fundo')
 
+  // Sujeira de origem: ilha pequena demais para ser parte do desenho.
+  //
+  // Precisa sair ANTES do agrupamento, e nao depois. O piso por grupo nao
+  // alcanca essas: o risco de chao do Goiabeira cruza o corpo no eixo x, entao
+  // ele e absorvido pelo grupo do personagem e passa a viajar junto com ele.
+  const maiorIlha = ilhas.reduce((a, b) => (b.area > a.area ? b : a))
+  const vivas = pisoIlha > 0 ? ilhas.filter((i) => i.area >= maiorIlha.area * pisoIlha) : ilhas
+  if (vivas.length < ilhas.length) {
+    const marcaViva = new Set(vivas.map((i) => i.id))
+    for (let i = 0; i < w * h; i++) if (px[i * 4 + 3] && !marcaViva.has(marca[i])) px[i * 4 + 3] = 0
+  }
+
   // Agrupa ilhas que se sobrepoem no eixo x, com folga: rabo, chifre e cauda
   // frequentemente sao ilhas separadas do corpo, e nao podem ser perdidos.
   const folga = Math.round(w * 0.02)
   const grupos = []
-  for (const ilha of ilhas.slice().sort((a, b) => a.x0 - b.x0)) {
+  for (const ilha of vivas.slice().sort((a, b) => a.x0 - b.x0)) {
     const g = grupos.find((g) => ilha.x0 <= g.x1 + folga && ilha.x1 >= g.x0 - folga)
     if (g) {
       g.area += ilha.area
@@ -284,7 +372,13 @@ function figuras({ px, w, h }, escolha) {
     const dentro = mantidos.some((g) => x >= g.x0 && x <= g.x1 && y >= g.y0 && y <= g.y1)
     if (!dentro) px[i * 4 + 3] = 0
   }
-  return { caixa, ilhas: ilhas.length, grupos: grupos.length, mantidos: mantidos.length }
+  return {
+    caixa,
+    ilhas: ilhas.length,
+    sujeira: ilhas.length - vivas.length,
+    grupos: grupos.length,
+    mantidos: mantidos.length,
+  }
 }
 
 /** Descobre o tamanho do bloco de pixel da arte. */
@@ -384,7 +478,7 @@ function assentar(px, w, h, id) {
 
   return {
     px: tela,
-    medidas: { cabecaX, cabecaY: topoY, cabecaLargura, maoX, maoY, baseY },
+    medidas: { cabecaX, cabecaY: topoY, cabecaLargura, maoX, maoY, baseY, ...(ANCORA_MANUAL[id] ?? {}) },
   }
 }
 
@@ -408,8 +502,9 @@ async function processar(tipo, arquivo, id, nome) {
       relatorio.copias = fs.length
     }
 
-    const r = figuras(img, RESPINGO.has(id) ? 'respingo' : 'tudo')
+    const r = figuras(img, RESPINGO.has(id) ? 'respingo' : 'tudo', PISO_ILHA[tipo] ?? 0)
     relatorio.ilhas = r.ilhas
+    if (r.sujeira) relatorio.sujeira = r.sujeira
     relatorio.grupos = r.grupos
     ;({ x0, y0, x1, y1 } = { x0: r.caixa.x0, y0: r.caixa.y0, x1: r.caixa.x1, y1: r.caixa.y1 })
   }
@@ -441,7 +536,7 @@ async function processar(tipo, arquivo, id, nome) {
   let larguraFinal = info.width
   let alturaFinal = info.height
 
-  if (tipo === 'personagem' || tipo === 'atleta') {
+  if (ASSENTADOS.has(tipo)) {
     const posto = assentar(data, info.width, info.height, id)
     bruto = posto.px
     larguraFinal = LADO_PADRAO
@@ -468,27 +563,50 @@ async function processar(tipo, arquivo, id, nome) {
 mkdirSync(SAIDA, { recursive: true })
 for (const sub of ['personagens', 'itens', 'cenarios', 'fundos']) mkdirSync(join(SAIDA, sub), { recursive: true })
 
-const PASTAS = { personagem: 'Personagens', atleta: 'Personagens/atletaas', cenario: 'Fundos', fundo: 'Fundos', item: 'Itens' }
-const manifesto = []
+const PASTAS = {
+  personagem: join(ENTRADA, 'Personagens'),
+  atleta: join(ENTRADA, 'Personagens/atletaas'),
+  cenario: join(ENTRADA, 'Fundos'),
+  fundo: join(ENTRADA, 'Fundos'),
+  item: join(ENTRADA, 'Itens'),
+  cria: join(RAIZ, 'arte-origem/personagens'),
+}
+
+/**
+ * O manifesto e atualizado, nao reescrito.
+ *
+ * As pastas do Gemini em Downloads foram esvaziadas depois do processamento
+ * original, entao os 36 personagens, os 9 acessorios, os 8 cenarios e os 4
+ * fundos nao tem mais arte de origem: reescrever o manifesto do zero apagaria
+ * todos eles do catalogo. Quem nao tem origem no disco nao e reprocessado, nao
+ * tem o PNG tocado e mantem a linha que ja estava aqui.
+ */
+const anterior = existsSync(MANIFESTO) ? JSON.parse(readFileSync(MANIFESTO, 'utf8')) : []
+const manifesto = new Map(anterior.map((r) => [r.id, r]))
+const feitos = []
 const erros = []
+const semOrigem = []
 
 for (const [tipo, mapa] of Object.entries(MAPA)) {
-  const dir = join(ENTRADA, PASTAS[tipo])
-  const arquivos = readdirSync(dir).filter((f) => f.endsWith('.png'))
+  const dir = PASTAS[tipo]
+  const arquivos = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.png')) : []
   for (const [chave, [id, nome]] of Object.entries(mapa)) {
     const achado = arquivos.find((f) => f.includes(chave))
-    if (!achado) { erros.push(`${id} ${nome}: nenhum arquivo com "${chave}" em ${PASTAS[tipo]}`); continue }
+    if (!achado) { (manifesto.has(id) ? semOrigem : erros).push(`${id} ${nome}: sem arquivo com "${chave}" em ${dir}`); continue }
     try {
       const r = await processar(tipo, join(dir, achado), id, nome)
-      manifesto.push(r)
-      console.log(`${r.id.padEnd(7)} ${r.nome.padEnd(22)} bloco ${String(r.bloco).padStart(2)}  ${r.saida.padEnd(9)} ${String(r.kb).padStart(5)} KB  ${r.grupos > 1 ? "grupos " + r.grupos : ""}`)
+      manifesto.set(id, r)
+      feitos.push(r)
+      console.log(`${r.id.padEnd(7)} ${r.nome.padEnd(22)} bloco ${String(r.bloco).padStart(2)}  ${r.saida.padEnd(9)} ${String(r.kb).padStart(5)} KB  ${r.sujeira ? 'sujeira ' + r.sujeira : ''}`)
     } catch (e) {
       erros.push(`${id} ${nome}: ${e.message}`)
     }
   }
 }
 
-writeFileSync(join(SAIDA, 'manifesto.json'), JSON.stringify(manifesto, null, 2))
-const total = manifesto.reduce((s, r) => s + r.kb, 0)
-console.log(`\n${manifesto.length} sprites, ${total.toFixed(0)} KB no total`)
+const todos = [...manifesto.values()]
+writeFileSync(MANIFESTO, JSON.stringify(todos, null, 2))
+const total = todos.reduce((s, r) => s + r.kb, 0)
+console.log(`\n${feitos.length} sprites processados agora, ${todos.length} no manifesto, ${total.toFixed(0)} KB no total`)
+if (semOrigem.length) console.log(`\n${semOrigem.length} sem arte de origem, mantidos intactos do manifesto`)
 if (erros.length) { console.log('\nFALHAS:'); erros.forEach((e) => console.log('  ' + e)) }
