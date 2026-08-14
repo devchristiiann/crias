@@ -13,6 +13,7 @@ import {
   ICONE_MODULO,
   MAX_FAIXAS,
   OURO_MAXIMO,
+  OURO_PADRAO,
   configSchema,
   ehModuloDeGrupo,
   ehModuloDuracao,
@@ -58,10 +59,10 @@ const ICONES = [
 ] as const
 
 const FAIXAS_INICIAIS: Record<'acordar' | 'dormir' | 'tela', Faixa[]> = {
-  acordar: [{ ate: '06:00', ouro: OURO_MAXIMO }],
-  dormir: [{ ate: '23:00', ouro: OURO_MAXIMO }],
+  acordar: [{ ate: '06:00', ouro: OURO_PADRAO }],
+  dormir: [{ ate: '23:00', ouro: OURO_PADRAO }],
   // Em `tela` o valor e duracao: uma hora de uso, nao uma hora da manha.
-  tela: [{ ate: '01:00', ouro: OURO_MAXIMO }],
+  tela: [{ ate: '01:00', ouro: OURO_PADRAO }],
 }
 
 const CAMPO = `h-11 w-full rounded-lg border border-input bg-card px-3
@@ -94,7 +95,7 @@ export function FormularioHabito({
   const [icone, setIcone] = useState<string>('target')
   const [regra, setRegra] = useState<RegraFrequencia>({ tipo: 'diaria' })
   const [lembrete, setLembrete] = useState('')
-  const [ouroBase, setOuroBase] = useState(OURO_MAXIMO)
+  const [ouroBase, setOuroBase] = useState(OURO_PADRAO)
   const [puneOuro, setPuneOuro] = useState(false)
   const [faixas, setFaixas] = useState<Faixa[]>(FAIXAS_INICIAIS.acordar)
   const [copos, setCopos] = useState(5)
@@ -158,8 +159,10 @@ export function FormularioHabito({
         p_lembrete: mostraLembrete ? lembrete || null : null,
         // A primeira faixa e a que paga mais, e e ela que vira o `ouro_base`
         // para o resto do sistema seguir funcionando sem saber de faixa.
-        // Agua paga uma vez ao fechar o dia, entao o valor e fixo no teto.
-        p_ouro_base: temFaixas ? faixas[0].ouro : ehAgua ? OURO_MAXIMO : ouroBase,
+        // Agua nao tem campo de ouro na tela: o valor e fixo, e fica no padrao,
+        // nao no teto. Amarrado ao teto, subi-lo de 10 para 30 triplicaria
+        // calado o pagamento de uma rotina que ja paga varias vezes por dia.
+        p_ouro_base: temFaixas ? faixas[0].ouro : ehAgua ? OURO_PADRAO : ouroBase,
         p_group_id: grupoId ?? null,
         p_tipo: tipo,
         p_pune_ouro: deEvitar && puneOuro,
@@ -447,8 +450,9 @@ export function FormularioHabito({
                 min={1}
                 max={OURO_MAXIMO}
                 value={ouroBase}
-                // Teto de 10 travado aqui e no banco. Sem teto, quem cadastra o
-                // habito define a propria recompensa e a economia perde o sentido.
+                // O teto vive em `OURO_MAXIMO` e esta travado tambem no banco.
+                // Sem teto, quem cadastra o habito define a propria recompensa e
+                // a economia perde o sentido.
                 onChange={(e) =>
                   setOuroBase(Math.min(OURO_MAXIMO, Math.max(1, Number(e.target.value) || 1)))
                 }
@@ -495,7 +499,7 @@ export function FormularioHabito({
 const MENSAGENS: Record<string, string> = {
   titulo_vazio: 'Escreva o que você vai fazer.',
   frequencia_invalida: 'Escolha uma frequência válida.',
-  ouro_base_invalido: 'O ouro por vez precisa ficar entre 1 e 10.',
+  ouro_base_invalido: `O ouro por vez precisa ficar entre 1 e ${OURO_MAXIMO}.`,
   grupo_invalido: 'Você não participa desse grupo.',
   tipo_invalido: 'Escolha entre fazer e evitar.',
   modulo_invalido: 'Escolha um tipo de rotina válido.',

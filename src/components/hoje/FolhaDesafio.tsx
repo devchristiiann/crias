@@ -26,7 +26,6 @@ import {
   exigeFotoNoCheckIn,
   faixaPorDuracao,
   minutosDeDuracao,
-  permiteGaleria,
   type Modulo,
 } from '@/lib/modulos'
 import { cn } from '@/lib/utils'
@@ -474,19 +473,16 @@ export function FolhaDesafio({
               ref={entradaArquivo}
               type="file"
               accept="image/*"
-              // Acordar e dormir pedem selfie: foto do quarto não prova nada.
+              // Sem `capture` em nenhum módulo: o atributo abria a câmera direto
+              // e tirava da pessoa a opção de escolher da galeria. Sem ele o
+              // iPhone e o Android abrem a folha nativa com as duas saídas,
+              // biblioteca e tirar foto, que é o que o dono pediu.
               //
-              // `tela` é o ÚNICO módulo sem `capture`, de propósito: print de
-              // tempo de uso não existe na câmera, e forçar a câmera aqui
-              // quebra o módulo inteiro. Não "padronize" isto de volta. A
-              // regra mora em `permiteGaleria`, não neste componente.
-              capture={
-                permiteGaleria(ocorrencia.modulo)
-                  ? undefined
-                  : porHorario
-                    ? 'user'
-                    : 'environment'
-              }
+              // O custo foi aceito sabendo qual é: a foto deixa de ser prova de
+              // que a rotina aconteceu agora. O servidor nunca soube quando a
+              // foto foi TIRADA, só que o arquivo foi ENVIADO hoje, então com a
+              // galeria aberta qualquer imagem antiga satisfaz `exige_foto`.
+              // Quem cobra de verdade é a validação pelo grupo.
               className="hidden"
               onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
             />

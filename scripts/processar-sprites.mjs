@@ -14,9 +14,14 @@
  */
 import sharp from 'sharp'
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const RAIZ = '~/Desktop/Kortx/PROJETO - Crias'
+/* A raiz sai do proprio arquivo, e nao de um caminho escrito a mao. O caminho
+ * fixo apontava para uma pasta que nao existe mais desde que o projeto mudou de
+ * lugar, e a falha era silenciosa: sem a pasta, todo `cria` caia em "sem arte
+ * de origem" e o script terminava dizendo que estava tudo certo. */
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ENTRADA = '~/Downloads'
 const SAIDA = join(RAIZ, 'public/sprites')
 const MANIFESTO = join(SAIDA, 'manifesto.json')
@@ -68,6 +73,8 @@ const MAPA = {
     'Goiabeira': ['cri-3', 'Goiabeira'],
     'Gustavo Pai': ['cri-4', 'Gustavo Pai'],
     'TH Dictador': ['cri-5', 'TH Dictador'],
+    'Thiago Uminha': ['cri-6', 'Thiago Uminha'],
+    'Melo Goat': ['cri-7', 'Melo Goat'],
   },
   item: {
     '2098ho': ['ace-14', 'Raio'],            '3fs9o4': ['ace-15', 'Capa'],
@@ -81,7 +88,19 @@ const MAPA = {
 /* Fundo de perfil e cena inteira, nao tem recorte nem silhueta: passa direto
  * para a reducao. Os outros tipos sao recortados. */
 const ALVO = { personagem: 128, atleta: 128, cria: 128, cenario: 128, item: 96, fundo: 384 }
-const TOL_FUNDO = 46
+/**
+ * Tolerancia da inundacao.
+ *
+ * Casada com o agrupamento de `coresDaBorda`, que junta numa mesma cor de fundo
+ * tudo que estiver a 70 de distancia. Enquanto valeu 46, os dois numeros se
+ * contradiziam: o cinza intermediario das quinas do xadrez de transparencia do
+ * Gustavo Pai era agrupado no representante 217 na hora de colher a borda, e
+ * depois recusado na hora de inundar, porque dele ate o representante ha 57. O
+ * resultado eram lascas brancas soltas no meio do sprite, uma na virilha e uma
+ * ao lado do chinelo. Cor que conta como fundo ao colher tem que contar como
+ * fundo ao apagar.
+ */
+const TOL_FUNDO = 70
 
 /**
  * Tipos que passam por `assentar()`: tela de 128 por 128, pe na mesma linha,
@@ -163,6 +182,41 @@ const ENCAIXE = {
   'ace-15': 'costas', 'ace-16': 'costas',
 }
 
+/**
+ * Quem tem fundo PRESO dentro da silhueta, e por isso pede a segunda varredura.
+ *
+ * A inundacao entra pela borda, entao ela nunca alcanca o vao entre as pernas,
+ * nem o buraco entre o braco e o tronco: o contorno do desenho fecha a passagem.
+ * Foi assim que o Goiabeira ficou com um bloco branco de 55 mil pixels entre as
+ * coxas e o Uminha com dois vaos brancos.
+ *
+ * A lista e por id de proposito, e nao uma regra ligada para todos, porque
+ * branco preso nem sempre e fundo. No cri-5 o troféu é de acrílico e o vidro
+ * está desenhado no mesmo branco chapado do fundo: apagar por cor abriria dois
+ * rasgos no prêmio. No cri-1 o terno é branco. Cada id aqui foi conferido no
+ * sprite ampliado, um a um, depois de rodar.
+ */
+const FUNDO_PRESO = new Set(['cri-3', 'cri-4', 'cri-6'])
+
+/**
+ * Tolerancia da segunda varredura, bem mais apertada que a da inundacao.
+ *
+ * A inundacao pode ser generosa porque cresce a partir de pixel que ja e fundo
+ * comprovado. Aqui nao ha vizinhanca para confiar, so a cor, entao o cerco e
+ * fechado: quase o valor exato colhido na borda.
+ */
+const TOL_PRESO = 14
+
+/**
+ * Piso do vao preso, em fracao do MAIOR vao preso da propria imagem.
+ *
+ * Fracao do maior, e nao numero absoluto, porque o que separa fundo de detalhe
+ * do desenho aqui e ordem de grandeza: no Goiabeira o vao entre as pernas tem
+ * 55 mil pixels e o branco da manga tem mil. Um piso absoluto teria que ser
+ * reajustado a cada arte nova; este se ajusta sozinho.
+ */
+const PISO_PRESO = 0.1
+
 /* Imagens que o Gemini devolveu com a mesma arte repetida lado a lado. */
 const TRIPLICADOS = new Set(['rob-1', 'anf-1'])
 /* Imagens com respingo solto que nao faz parte do desenho. */
@@ -220,7 +274,47 @@ function ehFundo(px, o, reps, tol) {
   return false
 }
 
-function removerFundo(img) {
+/**
+ * Vaos de fundo cercados pelo desenho, que a inundacao da borda nunca alcanca.
+ *
+ * Marca em `fundo` os componentes de cor de fundo que sobraram, do maior para
+ * baixo, ate o piso. O componente e achado por vizinhanca, e nao por cor solta,
+ * senao cada letra branca de estampa entraria na conta.
+ */
+function removerFundoPreso(px, w, h, fundo, reps) {
+  const eh = (i) => !fundo[i] && ehFundo(px, i * 4, reps, TOL_PRESO)
+  const visto = new Uint8Array(w * h)
+  const vaos = []
+  for (let s = 0; s < w * h; s++) {
+    if (visto[s] || !eh(s)) continue
+    const pixels = [s]
+    visto[s] = 1
+    for (let k = 0; k < pixels.length; k++) {
+      const i = pixels[k]
+      const x = i % w, y = (i / w) | 0
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+        const j = ny * w + nx
+        if (visto[j] || !eh(j)) continue
+        visto[j] = 1
+        pixels.push(j)
+      }
+    }
+    vaos.push(pixels)
+  }
+  if (!vaos.length) return 0
+  const maior = vaos.reduce((a, v) => Math.max(a, v.length), 0)
+  let apagados = 0
+  for (const vao of vaos) {
+    if (vao.length < maior * PISO_PRESO) continue
+    for (const i of vao) fundo[i] = 1
+    apagados += vao.length
+  }
+  return apagados
+}
+
+function removerFundo(img, presos) {
   const { px, w, h } = img
   const reps = coresDaBorda(img)
   if (!reps.length) throw new Error('não achei cor de fundo na borda')
@@ -272,7 +366,10 @@ function removerFundo(img) {
     }
   }
 
+  const preso = presos ? removerFundoPreso(px, w, h, fundo, reps) : 0
+
   for (let i = 0; i < w * h; i++) if (fundo[i]) px[i * 4 + 3] = 0
+  return preso
 }
 
 /** Faixas de colunas com conteudo, separadas por colunas totalmente vazias. */
@@ -488,7 +585,8 @@ async function processar(tipo, arquivo, id, nome) {
 
   let x0 = 0, y0 = 0, x1 = img.w - 1, y1 = img.h - 1
   if (tipo !== 'fundo') {
-    removerFundo(img)
+    const preso = removerFundo(img, FUNDO_PRESO.has(id))
+    if (preso) relatorio.preso = preso
 
     if (TRIPLICADOS.has(id)) {
       // Mesma arte repetida lado a lado. As copias sao separadas por colunas
@@ -589,7 +687,9 @@ const semOrigem = []
 
 for (const [tipo, mapa] of Object.entries(MAPA)) {
   const dir = PASTAS[tipo]
-  const arquivos = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.png')) : []
+  // JPEG entra junto: a arte do dono chega no formato que o aplicativo dele
+  // exporta, e exigir PNG fazia o personagem sumir do processamento calado.
+  const arquivos = existsSync(dir) ? readdirSync(dir).filter((f) => /\.(png|jpe?g)$/i.test(f)) : []
   for (const [chave, [id, nome]] of Object.entries(mapa)) {
     const achado = arquivos.find((f) => f.includes(chave))
     if (!achado) { (manifesto.has(id) ? semOrigem : erros).push(`${id} ${nome}: sem arquivo com "${chave}" em ${dir}`); continue }

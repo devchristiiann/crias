@@ -115,8 +115,8 @@ export interface MembroGrupo {
   cenarioEquipado: string | null
   concluidosHoje: number
   streakTotal: number
-  /** Ouro ganho nos desafios deste grupo no mes corrente. Criterio do ranking. */
-  ouroMes: number
+  /** Ouro ganho nos desafios deste grupo na semana corrente. Criterio do ranking. */
+  ouroSemana: number
   /** Ouro ganho nos desafios deste grupo desde que o grupo existe. */
   ouroTotal: number
   /** Personagem doente. O grupo precisa enxergar, entao a coluna vem na consulta. */
@@ -126,10 +126,31 @@ export interface MembroGrupo {
 /** Uma linha de `ranking_grupo`, ja na ordem do ranking. */
 interface LinhaRankingGrupo {
   user_id: string
-  ouro_mes: number
+  ouro_semana: number
   ouro_total: number
   streak_total: number
   concluidos_hoje: number
+}
+
+/** Quem levou premio na ultima semana que o servidor fechou. */
+export interface PremioSemana {
+  posicao: number
+  usuarioId: string
+  /**
+   * Nome de quem ganhou. Null quando o perfil nao e mais legivel, o que
+   * acontece se a pessoa saiu do grupo depois de receber: o premio aconteceu e
+   * continua na lista, sem inventar um nome para ele.
+   */
+  nome: string | null
+  ouro: number
+}
+
+interface LinhaPremiacao {
+  posicao: number
+  user_id: string
+  ouro: number
+  semana: string
+  profiles: { nome: string } | null
 }
 
 interface LinhaMembro {
@@ -153,6 +174,10 @@ export interface DetalheGrupo {
   exigeFoto: boolean
   /** URL assinada da capa. Null quando o grupo nao tem foto. */
   fotoUrl: string | null
+  /** Premio em ouro por posicao do podio. Indice 0 e o primeiro lugar. */
+  premios: number[]
+  /** Podio pago na ultima segunda. Vazio enquanto o grupo nunca premiou. */
+  premiacaoAnterior: PremioSemana[]
   membros: MembroGrupo[]
   desafios: { id: string; titulo: string; icone: string; ouroBase: number }[]
 }
@@ -162,18 +187,19 @@ export function useGrupo(grupoId: string | undefined) {
     queryKey: ['grupo', grupoId],
     enabled: Boolean(grupoId),
     queryFn: async (): Promise<DetalheGrupo> => {
-      // As tres so dependem do id da rota, entao vao na mesma rodada. O ranking
+      // As quatro so dependem do id da rota, entao vao na mesma rodada. O ranking
       // e uma RPC porque o ouro de cada check-in nao e legivel pelo cliente: o
       // servidor devolve so o agregado por membro, ja na ordem oficial.
       const [
         { data: grupo, error },
         { data: desafios, error: erroDesafios },
         { data: ranking, error: erroRanking },
+        { data: premiacoes, error: erroPremiacoes },
       ] = await Promise.all([
         supabase
           .from('groups')
           .select(
-            'id, nome, codigo_convite, dono_id, exige_foto, foto_path, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado, doente))',
+            'id, nome, codigo_convite, dono_id, exige_foto, foto_path, premio_1, premio_2, premio_3, group_members(user_id, profiles(id, nome, avatar_base, item_equipado, cenario_equipado, doente))',
           )
           .eq('id', grupoId!)
           .single(),
@@ -186,11 +212,25 @@ export function useGrupo(grupoId: string | undefined) {
           // lista mostraria "{ouroBase} ouro" num item que nao aceita check-in.
           .eq('tipo', 'bom'),
         supabase.rpc('ranking_grupo', { p_grupo: grupoId! }),
+        // Tres linhas bastam porque o podio tem tres lugares, e a ordem por
+        // semana desc poe a ultima paga na frente. O `limit` nao decide qual
+        // semana e: quem decide e o filtro logo abaixo, senao um grupo que
+        // premiou so o primeiro lugar completaria o trio com a semana anterior.
+        supabase
+          .from('premiacoes')
+          .select('posicao, user_id, ouro, semana, profiles(nome)')
+          .eq('group_id', grupoId!)
+          .order('semana', { ascending: false })
+          .order('posicao', { ascending: true })
+          .limit(3),
       ])
       if (error) throw error
       if (erroDesafios) throw erroDesafios
       // Falhar aqui em silencio zeraria o ranking inteiro sem ninguem notar.
       if (erroRanking) throw erroRanking
+      // Premio pago e ouro que entrou na carteira: esconder a falha faria a
+      // pessoa achar que a semana nao premiou ninguem.
+      if (erroPremiacoes) throw erroPremiacoes
 
       const capas = await assinarEmLote(
         'grupos',
@@ -220,12 +260,17 @@ export function useGrupo(grupoId: string | undefined) {
             cenarioEquipado: p.cenario_equipado,
             concluidosHoje: linha.concluidos_hoje,
             streakTotal: linha.streak_total,
-            ouroMes: linha.ouro_mes,
+            ouroSemana: linha.ouro_semana,
             ouroTotal: linha.ouro_total,
             doente: p.doente,
           }
         })
         .filter((m): m is MembroGrupo => m !== null)
+
+      // So a semana mais recente entra: a lista guarda todas, e misturar duas
+      // semanas num bloco chamado "Semana passada" seria mentira na tela.
+      const linhasPremio = (premiacoes ?? []) as unknown as LinhaPremiacao[]
+      const ultimaSemana = linhasPremio[0]?.semana ?? null
 
       return {
         id: grupo.id,
@@ -234,6 +279,15 @@ export function useGrupo(grupoId: string | undefined) {
         donoId: grupo.dono_id,
         exigeFoto: Boolean(grupo.exige_foto),
         fotoUrl: (grupo.foto_path && capas.get(grupo.foto_path)) || null,
+        premios: [grupo.premio_1, grupo.premio_2, grupo.premio_3],
+        premiacaoAnterior: linhasPremio
+          .filter((l) => l.semana === ultimaSemana)
+          .map((l) => ({
+            posicao: l.posicao,
+            usuarioId: l.user_id,
+            nome: l.profiles?.nome ?? null,
+            ouro: l.ouro,
+          })),
         membros,
         desafios: (desafios ?? []).map((d) => ({
           id: d.id,

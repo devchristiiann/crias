@@ -879,14 +879,15 @@
     "baseY": 123,
     "saida": "128x128",
     "arquivo": "/sprites/personagens/cri-2-nata-gameplay.png",
-    "kb": 2.8
+    "kb": 2.9
   },
   {
     "id": "cri-3",
     "nome": "Goiabeira",
     "tipo": "cria",
-    "ilhas": 4,
-    "sujeira": 3,
+    "preso": 55116,
+    "ilhas": 94,
+    "sujeira": 93,
     "grupos": 1,
     "bloco": 4,
     "cabecaX": 65,
@@ -897,17 +898,18 @@
     "baseY": 123,
     "saida": "128x128",
     "arquivo": "/sprites/personagens/cri-3-goiabeira.png",
-    "kb": 1.5
+    "kb": 1.6
   },
   {
     "id": "cri-4",
     "nome": "Gustavo Pai",
     "tipo": "cria",
-    "ilhas": 67,
-    "sujeira": 66,
+    "preso": 4020,
+    "ilhas": 33,
+    "sujeira": 32,
     "grupos": 1,
     "bloco": 4,
-    "cabecaX": 64,
+    "cabecaX": 63,
     "cabecaY": 10,
     "cabecaLargura": 26,
     "maoX": 82,
@@ -915,7 +917,7 @@
     "baseY": 123,
     "saida": "128x128",
     "arquivo": "/sprites/personagens/cri-4-gustavo-pai.png",
-    "kb": 1.3
+    "kb": 1.4
   },
   {
     "id": "cri-5",
@@ -932,6 +934,43 @@
     "baseY": 123,
     "saida": "128x128",
     "arquivo": "/sprites/personagens/cri-5-th-dictador.png",
+    "kb": 1.8
+  },
+  {
+    "id": "cri-6",
+    "nome": "Thiago Uminha",
+    "tipo": "cria",
+    "preso": 2310,
+    "ilhas": 57,
+    "sujeira": 56,
+    "grupos": 1,
+    "bloco": 4,
+    "cabecaX": 61,
+    "cabecaY": 10,
+    "cabecaLargura": 26,
+    "maoX": 79,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
+    "arquivo": "/sprites/personagens/cri-6-thiago-uminha.png",
     "kb": 1.6
+  },
+  {
+    "id": "cri-7",
+    "nome": "Melo Goat",
+    "tipo": "cria",
+    "ilhas": 2,
+    "sujeira": 1,
+    "grupos": 1,
+    "bloco": 8,
+    "cabecaX": 64,
+    "cabecaY": 10,
+    "cabecaLargura": 44,
+    "maoX": 87,
+    "maoY": 70,
+    "baseY": 123,
+    "saida": "128x128",
+    "arquivo": "/sprites/personagens/cri-7-melo-goat.png",
+    "kb": 2.5
   }
 ]

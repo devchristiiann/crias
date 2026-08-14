@@ -6,6 +6,7 @@ import {
   faixaPorDuracao,
   faixaVigente,
   minutosDeDuracao,
+  OURO_MAXIMO,
   type ConfigHorario,
 } from './modulos'
 
@@ -84,8 +85,16 @@ describe('configSchema', () => {
     expect(configSchema.safeParse({ faixas: [] }).success).toBe(false)
   })
 
-  it('rejeita ouro acima do teto', () => {
-    expect(configSchema.safeParse({ faixas: [{ ate: '06:00', ouro: 11 }] }).success).toBe(false)
+  // O teto em si vive em `OURO_MAXIMO`. As duas asserções andam juntas de
+  // propósito: sozinha, a de cima passaria com o schema travado num teto menor
+  // que a constante, que é a falha silenciosa de quando o teto muda.
+  it('aceita o teto e rejeita ouro acima dele', () => {
+    expect(
+      configSchema.safeParse({ faixas: [{ ate: '06:00', ouro: OURO_MAXIMO }] }).success,
+    ).toBe(true)
+    expect(
+      configSchema.safeParse({ faixas: [{ ate: '06:00', ouro: OURO_MAXIMO + 1 }] }).success,
+    ).toBe(false)
   })
 
   it('rejeita horario fora do formato', () => {
@@ -357,9 +366,10 @@ describe('erroConfig do modulo tela', () => {
     expect(erroConfig('tela', cinco)).toBeTruthy()
   })
 
-  it('recusa ouro fora de 1 a 10', () => {
-    expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: 11 }] })).toBeTruthy()
+  it(`recusa ouro fora de 1 a ${OURO_MAXIMO}`, () => {
+    expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: OURO_MAXIMO + 1 }] })).toBeTruthy()
     expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: 0 }] })).toBeTruthy()
+    expect(erroConfig('tela', { faixas: [{ ate: '01:00', ouro: OURO_MAXIMO }] })).toBeNull()
   })
 
   it('nao aplica a regra de madrugada do dormir', () => {

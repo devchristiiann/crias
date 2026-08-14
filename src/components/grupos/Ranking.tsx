@@ -2,7 +2,7 @@ import { Coins, Flame } from 'lucide-react'
 import { useMemo } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { Esqueleto } from '@/components/ui/Esqueleto'
-import type { MembroGrupo } from '@/hooks/useGrupos'
+import type { MembroGrupo, PremioSemana } from '@/hooks/useGrupos'
 import { cn } from '@/lib/utils'
 
 /**
@@ -86,10 +86,10 @@ export function RankingEsqueleto() {
     <section aria-busy="true" className="space-y-3">
       <div>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Ranking do mês
+          Ranking da semana
         </h2>
         <p className="text-xs text-muted-foreground">
-          Ouro ganho nos desafios do grupo neste mês. Empate vai para a ofensiva.
+          Ouro ganho nos desafios do grupo nesta semana. Empate vai para a ofensiva.
         </p>
       </div>
 
@@ -129,9 +129,13 @@ export function RankingEsqueleto() {
 
 export function Ranking({
   membros,
+  premios,
+  premiacaoAnterior,
   usuarioId,
 }: {
   membros: MembroGrupo[]
+  premios: number[]
+  premiacaoAnterior: PremioSemana[]
   usuarioId: string | null
 }) {
   const podio = ORDEM_PODIO.filter((i) => i < membros.length).map((i) => ({
@@ -142,15 +146,23 @@ export function Ranking({
   const indiceProprio = membros.findIndex((m) => m.id === usuarioId)
   const eu = indiceProprio >= 0 ? membros[indiceProprio] : null
 
+  // O cracha so aparece onde o servidor realmente vai pagar, e as duas condicoes
+  // sao as mesmas de `premiar_semana`: a pessoa precisa ter ganho ouro na semana,
+  // e o grupo precisa de pelo menos duas pessoas com ouro, senao um grupo parado
+  // imprimiria ouro toda segunda. Sem esta conta a tela prometia 500 ao primeiro
+  // numa semana em que so uma pessoa fez check-in, e o pagamento nao vinha.
+  const comOuro = membros.filter((m) => m.ouroSemana > 0).length
+  const premiaDeVerdade = comOuro >= 2
+
   return (
     <section className="space-y-3">
       <div>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Ranking do mês
+          Ranking da semana
         </h2>
         {/* Numero sem criterio parece arbitrario. O criterio fica na tela. */}
         <p className="text-xs text-muted-foreground">
-          Ouro ganho nos desafios do grupo neste mês. Empate vai para a ofensiva.
+          Ouro ganho nos desafios do grupo nesta semana. Empate vai para a ofensiva.
         </p>
       </div>
 
@@ -165,6 +177,7 @@ export function Ranking({
               key={membro.id}
               membro={membro}
               posicao={posicao}
+              premio={premiaDeVerdade && membro.ouroSemana > 0 ? (premios[posicao - 1] ?? 0) : 0}
               souEu={membro.id === usuarioId}
             />
           ))}
@@ -188,8 +201,84 @@ export function Ranking({
         </ul>
       )}
 
+      <PremioDaSemana
+        premios={premios}
+        premiacaoAnterior={premiacaoAnterior}
+        usuarioId={usuarioId}
+      />
+
       <RankingGeral membros={membros} usuarioId={usuarioId} />
     </section>
+  )
+}
+
+/**
+ * A competição do grupo: quem levou o prêmio na última segunda.
+ *
+ * Fica no fim da seção, abaixo de tudo que o esqueleto desenha, e nunca acima do
+ * pódio. Ele nasce da consulta e só existe em grupo que cadastrou prêmio: no
+ * topo, apareceria junto com a resposta e empurraria o pódio para baixo com a
+ * pessoa já lendo, que é o mesmo defeito que tirou o botão de capa do cabeçalho.
+ */
+function PremioDaSemana({
+  premios,
+  premiacaoAnterior,
+  usuarioId,
+}: {
+  premios: number[]
+  premiacaoAnterior: PremioSemana[]
+  usuarioId: string | null
+}) {
+  const houvePagamento = premiacaoAnterior.length > 0
+
+  // Grupo sem prêmio cadastrado e sem histórico não tem competição nenhuma, e um
+  // bloco explicando um jogo que não existe é ruído na tela de quem só quer ver
+  // o ranking.
+  if (!houvePagamento && premios.every((p) => p === 0)) return null
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {houvePagamento ? 'Semana passada' : 'Prêmio da semana'}
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Toda segunda o servidor paga o pódio da semana.
+        </p>
+      </div>
+      {houvePagamento && (
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {premiacaoAnterior.map((premio) => (
+            <li
+              key={premio.posicao}
+              className={cn(
+                'flex min-h-11 items-center gap-3 px-3 py-2 text-sm',
+                premio.usuarioId === usuarioId && 'bg-primary/5',
+              )}
+            >
+              <span
+                className={cn(
+                  'w-6 shrink-0 text-center text-xs font-semibold',
+                  premio.usuarioId === usuarioId ? 'text-primary' : 'text-muted-foreground',
+                )}
+              >
+                {premio.posicao}º
+              </span>
+              {/* Quem saiu do grupo depois de receber deixa de ter nome legível
+                  aqui. O prêmio aconteceu e continua na lista: inventar um nome
+                  seria pior que dizer o que de fato se sabe. */}
+              <span className="min-w-0 flex-1 truncate">
+                {premio.usuarioId === usuarioId ? 'Você' : (premio.nome ?? 'Saiu do grupo')}
+              </span>
+              <span className="flex shrink-0 items-center gap-1 font-semibold">
+                <Coins className="size-4 text-warning" />
+                {premio.ouro}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -262,10 +351,13 @@ function RankingGeral({
 function ItemPodio({
   membro,
   posicao,
+  premio,
   souEu,
 }: {
   membro: MembroGrupo
   posicao: number
+  /** Ouro que esta posição paga na segunda. Zero quando o grupo não premia. */
+  premio: number
   souEu: boolean
 }) {
   const primeiro = posicao === 1
@@ -296,7 +388,7 @@ function ItemPodio({
         className={cn('flex items-center gap-1 font-semibold', primeiro ? 'text-sm' : 'text-xs')}
       >
         <Coins className={cn('text-warning', primeiro ? 'size-4' : 'size-3.5')} />
-        {membro.ouroMes}
+        {membro.ouroSemana}
       </span>
       {/* A ofensiva vira o segundo numero: ela desempata, entao continua na
           tela, menor que o ouro que decide. */}
@@ -304,13 +396,24 @@ function ItemPodio({
         <Flame className="size-3" />
         {membro.streakTotal}
       </span>
+      {/* O prêmio entra DENTRO da barra do pódio, e a altura dela não muda com
+          ele: o esqueleto desenha exatamente h-14 e h-9, e uma linha a mais aqui
+          faria a tela pular no instante em que os números chegam. Por isso o
+          número da posição passou a ficar centralizado em vez de colado no topo,
+          abrindo espaço para o prêmio sem crescer um pixel. */}
       <span
         className={cn(
-          'mt-1 flex w-full justify-center rounded-t-lg pt-1.5 text-lg font-bold',
+          'mt-1 flex w-full flex-col items-center justify-center gap-0.5 rounded-t-lg leading-none',
           primeiro ? 'h-14 bg-warning/20 text-warning' : 'h-9 bg-muted text-muted-foreground',
         )}
       >
-        {posicao}º
+        <span className="text-lg font-bold">{posicao}º</span>
+        {premio > 0 && (
+          <span className="flex items-center gap-0.5 text-[11px] font-semibold">
+            <Coins className="size-3" />
+            {premio}
+          </span>
+        )}
       </span>
     </li>
   )
@@ -366,7 +469,7 @@ function LinhaRanking({
       </span>
       <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
         <Coins className="size-4 text-warning" />
-        {membro.ouroMes}
+        {membro.ouroSemana}
       </span>
     </div>
   )

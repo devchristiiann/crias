@@ -148,7 +148,16 @@ export function GrupoDetalhe() {
 
       {grupo ? <PlacarHoje membros={grupo.membros} /> : <PlacarEsqueleto />}
 
-      {grupo ? <Ranking membros={grupo.membros} usuarioId={usuarioId} /> : <RankingEsqueleto />}
+      {grupo ? (
+        <Ranking
+          membros={grupo.membros}
+          premios={grupo.premios}
+          premiacaoAnterior={grupo.premiacaoAnterior}
+          usuarioId={usuarioId}
+        />
+      ) : (
+        <RankingEsqueleto />
+      )}
 
       <div className="space-y-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

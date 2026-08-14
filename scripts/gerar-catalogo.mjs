@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
-const RAIZ='~/Desktop/Kortx/PROJETO - Crias'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+/* A raiz sai do proprio arquivo. O caminho escrito a mao apontava para uma
+ * pasta que nao existe mais desde que o projeto mudou de lugar, e o script
+ * morria com ENOENT em vez de gerar o catalogo. */
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 const m=JSON.parse(readFileSync(RAIZ+'/public/sprites/manifesto.json','utf8'))
 
 /**
@@ -35,7 +40,7 @@ const PRECO={
   'pes-1':300,'pes-2':300,'pes-3':150,'pes-4':300,'pes-5':150,'pes-6':150,
   'rob-1':200,'rob-3':250,'rob-4':300,
   'atl-1':1200,'atl-2':1200,'atl-3':1200,'atl-4':1200,'atl-5':1200,
-  'cri-1':1500,'cri-2':1500,'cri-3':1500,'cri-4':1500,'cri-5':2500,
+  'cri-1':1500,'cri-2':1500,'cri-3':1500,'cri-4':1500,'cri-5':2500,'cri-6':2500,'cri-7':1200,
   'cen-1':100,'cen-2':150,'cen-3':400,'cen-4':250,'cen-5':250,'cen-6':250,'cen-7':400,'cen-10':700,
   'fun-1':1500,'fun-2':1500,'fun-3':1500,'fun-4':1500,
   'ace-1':400,'ace-2':250,'ace-3':250,'ace-10':220,'ace-11':220,'ace-12':350,'ace-14':300,'ace-15':400,'ace-16':700,

@@ -26,7 +26,17 @@ export const PRECO_CURA = 200
 export const PRECO_ESCUDO = 800
 
 export const MAX_FAIXAS = 4
-export const OURO_MAXIMO = 10
+export const OURO_MAXIMO = 30
+/**
+ * Quanto vale uma rotina nova antes de a pessoa escolher.
+ *
+ * Separado do teto de proposito. Enquanto os dois eram 10, um numero servia
+ * para as duas coisas e ninguem via a diferenca; subir o teto para 30 com o
+ * padrao amarrado nele triplicaria calado a recompensa de toda rotina criada
+ * daqui para frente, sem ninguem decidir nada. O teto e ate onde da para ir, o
+ * padrao e onde se comeca.
+ */
+export const OURO_PADRAO = 10
 export const COPOS_MIN = 2
 export const COPOS_MAX = 10
 /** Duracao declarada no check-in de `tela`. O servidor recusa fora daqui. */
@@ -111,18 +121,6 @@ export function ehModuloDuracao(m: Modulo): boolean {
  * check-in ficaria esperando para sempre.
  */
 export function ehModuloDeGrupo(m: Modulo): boolean {
-  return m === 'tela'
-}
-
-/**
- * Unico modulo onde subir da galeria e permitido. Todos os outros abrem a
- * camera, porque foto tirada na hora vale mais que arquivo escolhido.
- *
- * NAO "padronize" isto de volta pondo `capture` no campo de foto: print de tempo
- * de uso nao existe na camera, e o modulo inteiro para de funcionar. A prova
- * mais fraca e o motivo de este modulo ter enquete e os outros nao.
- */
-export function permiteGaleria(m: Modulo): boolean {
   return m === 'tela'
 }
 

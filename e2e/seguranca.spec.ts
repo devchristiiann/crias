@@ -300,6 +300,37 @@ test.describe.serial('correcoes de seguranca da 0013', () => {
     expect(legitimo.status, JSON.stringify(legitimo.corpo)).toBe(201)
   })
 
+  // O teto de ouro por rotina subiu de 10 para 30 na 0030, e ele vive em tres
+  // lugares que precisam concordar: a constraint da tabela, a `criar_habito` e a
+  // `config_valida`. O formulario nao conta, porque a RPC e chamavel direto. Sem
+  // um caso que passe do teto e outro que encoste nele, um dos tres podia ficar
+  // no numero velho e ninguem veria.
+  test('criar_habito aceita o teto de ouro e recusa um a mais', async () => {
+    const acima = await comoUsuario(tokenA, '/rest/v1/rpc/criar_habito', {
+      method: 'POST',
+      body: {
+        p_titulo: 'Ouro acima do teto',
+        p_regra: { tipo: 'diaria' },
+        p_ouro_base: 31,
+        p_group_id: null,
+      },
+    })
+    expect(acima.status).toBe(200)
+    expect(acima.corpo).toEqual({ error: 'ouro_base_invalido' })
+
+    const noTeto = await comoUsuario(tokenA, '/rest/v1/rpc/criar_habito', {
+      method: 'POST',
+      body: {
+        p_titulo: 'Ouro no teto',
+        p_regra: { tipo: 'diaria' },
+        p_ouro_base: 30,
+        p_group_id: null,
+      },
+    })
+    expect(noTeto.status, JSON.stringify(noTeto.corpo)).toBe(200)
+    expect(noTeto.corpo).toMatchObject({ ok: true })
+  })
+
   test('check_in recusa ocorrencia que ainda nao abriu', async () => {
     const r = await comoUsuario(tokenA, '/rest/v1/rpc/check_in', {
       method: 'POST',

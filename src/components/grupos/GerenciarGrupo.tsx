@@ -17,7 +17,18 @@ const MENSAGENS: Record<string, string> = {
   sem_permissao: 'Você não administra este grupo.',
   nome_vazio: 'Escreva um nome para o grupo.',
   dono_nao_sai: 'O dono não sai do grupo.',
+  premio_invalido: 'Cada lugar vai de 0 a 500 de ouro.',
 }
+
+/**
+ * Teto do prêmio por posição, o mesmo da constraint de `groups` e da RPC.
+ *
+ * Quem manda é o servidor: aqui o número serve para o campo já nascer dentro da
+ * faixa, em vez de deixar a pessoa digitar 5000 e levar erro depois de salvar.
+ */
+const PREMIO_MAXIMO = 500
+
+const ROTULOS_PODIO = ['1º lugar', '2º lugar', '3º lugar']
 
 /**
  * Administração do grupo numa folha só, atrás de uma engrenagem.
@@ -32,6 +43,21 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
   const [aberta, setAberta] = useState(false)
   const [confirmando, setConfirmando] = useState<'excluir' | 'sair' | null>(null)
   const [nome, setNome] = useState(grupo.nome)
+  const [premios, setPremios] = useState(grupo.premios)
+
+  const salvarPremios = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('atualizar_grupo', {
+        p_grupo: grupo.id,
+        p_premio_1: premios[0],
+        p_premio_2: premios[1],
+        p_premio_3: premios[2],
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(MENSAGENS[data.error] ?? 'Não deu para salvar agora.')
+    },
+    onSuccess: () => cliente.invalidateQueries({ queryKey: ['grupo'] }),
+  })
 
   const salvarNome = useMutation({
     mutationFn: async () => {
@@ -112,6 +138,7 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
         title={ehDono ? 'Administrar grupo' : 'Convite e saída'}
         onClick={() => {
           setNome(grupo.nome)
+          setPremios(grupo.premios)
           setAberta(true)
         }}
         className="flex size-11 shrink-0 items-center justify-center rounded-md
@@ -191,6 +218,69 @@ export function GerenciarGrupo({ grupo, ehDono }: { grupo: DetalheGrupo; ehDono:
                 {alternarFoto.isError && (
                   <p className="text-sm text-destructive">{alternarFoto.error.message}</p>
                 )}
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Prêmio da semana
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Toda segunda o servidor paga o pódio da semana. Só paga em grupo com pelo menos
+                    duas pessoas ganhando ouro. Deixe zero para não premiar o lugar.
+                  </p>
+                </div>
+                {/* Grade de 3 colunas, nunca flex: em 360px o flex estoura a
+                    largura da folha, e rolagem horizontal é bug bloqueante. */}
+                <div className="grid grid-cols-3 gap-2">
+                  {ROTULOS_PODIO.map((rotulo, i) => (
+                    <Campo
+                      key={rotulo}
+                      rotulo={rotulo}
+                      type="number"
+                      min={0}
+                      max={PREMIO_MAXIMO}
+                      value={premios[i]}
+                      // Preso na faixa já na digitação, do mesmo jeito que o
+                      // formulário de rotina prende o ouro do desafio: assim
+                      // não existe estado inválido esperando o Salvar recusar.
+                      onChange={(e) =>
+                        setPremios(
+                          premios.map((valor, j) =>
+                            j === i
+                              ? Math.min(PREMIO_MAXIMO, Math.max(0, Number(e.target.value) || 0))
+                              : valor,
+                          ),
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+                {/* A trava vive no servidor: prêmio mexido no meio da semana só
+                    vale na semana seguinte, senão o dono olharia o placar de
+                    domingo e se premiaria. Sem esta linha, a regra vira bug
+                    invisível para quem salvar e não receber nada na segunda. */}
+                <p className="text-xs text-muted-foreground">
+                  Mudança no prêmio passa a valer na próxima semana.
+                </p>
+                <Botao
+                  className="w-full"
+                  disabled={premios.every((valor, i) => valor === grupo.premios[i])}
+                  carregando={salvarPremios.isPending}
+                  onClick={() => salvarPremios.mutate()}
+                >
+                  Salvar prêmios
+                </Botao>
+                {salvarPremios.isError && (
+                  <p className="text-sm text-destructive">{salvarPremios.error.message}</p>
+                )}
+                {salvarPremios.isSuccess &&
+                  premios.every((valor, i) => valor === grupo.premios[i]) && (
+                    <p className="flex items-center gap-1.5 text-sm text-success">
+                      <Check className="size-4" />
+                      Prêmios salvos.
+                    </p>
+                  )}
               </div>
 
               <div className="space-y-2">

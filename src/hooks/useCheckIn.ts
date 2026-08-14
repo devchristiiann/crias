@@ -48,7 +48,12 @@ const ERROS_CHECK_IN: Record<string, string> = {
   // Vale para o grupo que exige foto e para acordar e dormir, que exigem
   // sempre. Nomear o grupo aqui mentiria na metade dos casos.
   foto_obrigatoria: 'Anexe uma foto para concluir esta rotina.',
-  foto_invalida: 'Não deu para usar essa foto. Tente outra.',
+  // O caso real deste código em produção não foi foto ruim: foi app velho na
+  // memória do celular gravando a foto no caminho anterior à 47d37f0, que o
+  // servidor recusa. Trocar de foto nunca resolvia. A frase manda fazer o que
+  // resolve, e fechar e abrir o app não atrapalha quem caiu aqui por outro
+  // motivo.
+  foto_invalida: 'Não deu para usar essa foto. Feche e abra o app, depois tente de novo.',
   // Só "N vezes por semana" e "N vezes por mês": a ocorrência cobre a janela
   // inteira e vale uma marcação por dia. Dizer o porquê importa, senão a pessoa
   // acha que o botão quebrou.
@@ -117,7 +122,7 @@ export function useCheckIn() {
         // anexou. Falhar aqui é a resposta honesta.
         if (!usuarioId) throw new Error('Sua sessão expirou. Entre de novo para enviar a foto.')
         const comprimida = await comprimirImagem(foto)
-        // `<uid>/<ocorrencia>/<envio>.webp`. A ocorrência é uma PASTA, não parte
+        // `<uid>/<ocorrencia>/<envio>.<ext>`. A ocorrência é uma PASTA, não parte
         // do nome do arquivo: é o segundo segmento que o `check_in` confere para
         // saber que esta foto é deste check-in. Antes bastava reenviar o
         // `foto_path` de qualquer outra ocorrência para satisfazer `exige_foto`.
@@ -127,7 +132,13 @@ export function useCheckIn() {
         // real, que é o que o `check_in` confere para saber que a foto é de
         // hoje; e o caminho deixa de ser adivinhável, então reenviar o path de
         // ontem numa janela de "N vezes por semana" não paga mais.
-        caminho = `${usuarioId}/${ocorrenciaId}/${crypto.randomUUID()}.webp`
+        //
+        // A extensão sai do tipo real do blob, e não de um `.webp` fixo: quando
+        // o navegador não codifica WebP a compressão devolve JPEG, e o caminho
+        // ficava mentindo sobre o próprio arquivo. O formato do caminho não
+        // muda, só a extensão: `foto_da_ocorrencia` confere os três segmentos.
+        const extensao = comprimida.type.split('/')[1]
+        caminho = `${usuarioId}/${ocorrenciaId}/${crypto.randomUUID()}.${extensao}`
         const { error } = await supabase.storage
           .from('checkins')
           // O tipo vem do blob: quando o navegador nao codifica WebP a

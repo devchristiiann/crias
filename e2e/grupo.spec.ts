@@ -375,7 +375,7 @@ test.describe.serial('refinamentos de grupo', () => {
     await entrarNoApp(page, emailA)
     await page.goto(`/grupos/${terceiroGrupo}`)
 
-    await expect(page.getByRole('heading', { name: 'Ranking do mês' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ranking da semana' })).toBeVisible()
 
     // A lista do acumulado e de cima para baixo, sem podio embaralhando a ordem.
     const geral = page.getByRole('heading', { name: 'Desde o começo' }).locator('xpath=../..')
