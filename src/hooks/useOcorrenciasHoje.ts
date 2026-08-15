@@ -76,6 +76,15 @@ interface LinhaOcorrencia {
 }
 
 /**
+ * Rotina de janela: "N vezes por semana" e "N vezes por mes" geram UMA
+ * ocorrencia cobrindo o periodo inteiro, com `inicio_janela` no primeiro dia e
+ * `data_sp` no ultimo. Ela vale um check-in por dia dentro da janela.
+ */
+function ehJanela(r: RegraFrequencia) {
+  return r.tipo === 'n_por_semana' || r.tipo === 'n_por_mes'
+}
+
+/**
  * Ordem da lista: o que ainda depende da pessoa vem primeiro, depois o que
  * depende do grupo, e por ultimo o que ja acabou.
  */
@@ -94,7 +103,12 @@ export function useOcorrenciasHoje() {
   // aberta ate 00h30. Rotina comum de ontem venceu as 23:59 e nao passa no
   // filtro de `vence_em`, entao a tela nao vira lista de pendencia velha.
   const ontem = somarDias(hoje, -1)
-  const datas = [ontem, hoje]
+  // O PostgREST nao faz OR encadeando filtro: `.in(...).gte(...)` vira AND. O
+  // `.or()` monta os dois conjuntos numa consulta so, e sem o segundo ramo a
+  // rotina de janela so apareceria no ULTIMO dia do periodo, que e o unico em
+  // que o `data_sp` dela bate com hoje. Academia de 5 vezes por semana ficaria
+  // invisivel de segunda a sabado.
+  const filtroDoDia = `data_sp.in.(${ontem},${hoje}),and(inicio_janela.lte.${hoje},data_sp.gte.${hoje})`
 
   return useQuery({
     queryKey: ['ocorrencias', usuarioId, hoje],
@@ -109,7 +123,7 @@ export function useOcorrenciasHoje() {
                           lembrete_hora, group_id, groups ( nome, dono_id, exige_foto ) )`,
         )
         .eq('user_id', usuarioId!)
-        .in('data_sp', datas)
+        .or(filtroDoDia)
       if (error) throw error
 
       const agora = Date.now()
@@ -136,7 +150,14 @@ export function useOcorrenciasHoje() {
       if (erroStreak) throw erroStreak
       const porHabito = new Map((streaks ?? []).map((s) => [s.habit_id, s.atual]))
 
-      const habitosDeGrupo = linhas.filter((l) => l.habits.group_id).map((l) => l.habits.id)
+      const deGrupo = linhas.filter((l) => l.habits.group_id)
+      const habitosDeGrupo = deGrupo.map((l) => l.habits.id)
+      // Na janela, "quem ja foi" e quem marcou HOJE, nao quem fechou a semana:
+      // o status fica `pendente` ate a ultima marcacao, entao contar so o
+      // `feito` mostraria "0 de 3" a semana inteira num grupo que treinou.
+      const janelas = new Set(
+        deGrupo.filter((l) => ehJanela(l.habits.regra_frequencia)).map((l) => l.habits.id),
+      )
       const progresso = new Map<string, { feitos: number; total: number }>()
 
       if (habitosDeGrupo.length > 0) {
@@ -144,18 +165,29 @@ export function useOcorrenciasHoje() {
         // E dai que sai o "4 de 6 do grupo ja foram".
         const { data: doGrupo, error: erroGrupo } = await supabase
           .from('occurrences')
-          .select('habit_id, status, data_sp')
+          .select('habit_id, status, data_sp, ultima_marcacao_sp')
           .in('habit_id', habitosDeGrupo)
-          .in('data_sp', datas)
+          // Os dias saem das proprias linhas, e nao mais de [ontem, hoje]: a
+          // ocorrencia de janela tem `data_sp` no fim do periodo, quase sempre
+          // no futuro, e filtrar pelos dois dias nao acharia colega nenhum.
+          .in('data_sp', [...new Set(deGrupo.map((l) => l.data_sp))])
         if (erroGrupo) throw erroGrupo
+
+        const linhasDoGrupo = (doGrupo ?? []) as {
+          habit_id: string
+          status: OcorrenciaHoje['status']
+          data_sp: string
+          ultima_marcacao_sp: string | null
+        }[]
 
         // A chave carrega o dia junto: somar os dois dias no mesmo balde diria
         // "8 de 12 do grupo" num grupo de 6 pessoas.
-        for (const linha of doGrupo ?? []) {
+        for (const linha of linhasDoGrupo) {
           const chave = `${linha.habit_id}|${linha.data_sp}`
           const atual = progresso.get(chave) ?? { feitos: 0, total: 0 }
           atual.total += 1
-          if (linha.status === 'feito') atual.feitos += 1
+          const foiHoje = janelas.has(linha.habit_id) && linha.ultima_marcacao_sp === hoje
+          if (linha.status === 'feito' || foiHoje) atual.feitos += 1
           progresso.set(chave, atual)
         }
       }

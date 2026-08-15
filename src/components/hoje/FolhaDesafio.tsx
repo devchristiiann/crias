@@ -69,6 +69,17 @@ export function rotuloMarcacao(modulo: Modulo, feitas: number, alvo: number): st
 }
 
 /**
+ * A unidade da ofensiva. Rotina de janela fecha por período, não por dia: a
+ * ofensiva dela só anda quando a meta da semana ou do mês é cumprida, então
+ * "ofensiva de 1 dias" ali era número certo com unidade errada.
+ */
+export function unidadeDaOfensiva(tipo: RegraFrequencia['tipo'], streak: number): string {
+  if (tipo === 'n_por_semana') return streak === 1 ? 'semana' : 'semanas'
+  if (tipo === 'n_por_mes') return streak === 1 ? 'mês' : 'meses'
+  return streak === 1 ? 'dia' : 'dias'
+}
+
+/**
  * O que o desfazer vai fazer de verdade, dito antes de a pessoa confirmar.
  *
  * O eixo é o tipo de frequência e o STATUS, nunca o módulo sozinho. A tela
@@ -358,7 +369,7 @@ export function FolhaDesafio({
                 {feitas} de {ocorrencia.vezes_alvo} {ehAgua ? 'copos hoje' : 'vezes no período'}
               </p>
               <p className="shrink-0 text-xs text-muted-foreground">
-                {faltam > 0 ? `Faltam ${faltam}` : 'Tudo marcado'}
+                {faltam > 1 ? `Faltam ${faltam}` : faltam === 1 ? 'Falta 1' : 'Tudo marcado'}
               </p>
             </div>
             <div className="mt-2 flex gap-1" aria-hidden="true">
@@ -395,7 +406,12 @@ export function FolhaDesafio({
             ouro" ali faria o check-in que deu certo parecer defeito. */}
         {resultado && !resultado.ja_feito && (resultado.ouro_ganho ?? 0) > 0 && (
           <p className="text-sm font-medium text-success">
-            Mais {resultado.ouro_ganho} de ouro. Ofensiva de {resultado.streak} dias.
+            Mais {resultado.ouro_ganho} de ouro.
+            {(resultado.streak ?? 0) > 0 &&
+              ` Ofensiva de ${resultado.streak} ${unidadeDaOfensiva(
+                ocorrencia.regra.tipo,
+                resultado.streak ?? 0,
+              )}.`}
           </p>
         )}
 

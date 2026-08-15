@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PremioBau } from '@/hooks/useCheckIn'
 import { exigeFotoNoCheckIn } from '@/lib/modulos'
-import { detalheDoDesfazer, faceDoPremio, rotuloMarcacao } from './FolhaDesafio'
+import {
+  detalheDoDesfazer,
+  faceDoPremio,
+  rotuloMarcacao,
+  unidadeDaOfensiva,
+} from './FolhaDesafio'
 
 function premio(parcial: Partial<PremioBau>): PremioBau {
   return { tipo: 'ouro', ouro: 0, item_id: null, repetido: false, ...parcial }
@@ -116,5 +121,19 @@ describe('exigeFotoNoCheckIn', () => {
     expect(exigeFotoNoCheckIn('dormir', false)).toBe(true)
     expect(exigeFotoNoCheckIn('livre', true)).toBe(true)
     expect(exigeFotoNoCheckIn('livre', false)).toBe(false)
+  })
+})
+
+describe('unidadeDaOfensiva', () => {
+  it('rotina de janela conta período, não dia', () => {
+    expect(unidadeDaOfensiva('n_por_semana', 1)).toBe('semana')
+    expect(unidadeDaOfensiva('n_por_semana', 3)).toBe('semanas')
+    expect(unidadeDaOfensiva('n_por_mes', 1)).toBe('mês')
+    expect(unidadeDaOfensiva('n_por_mes', 2)).toBe('meses')
+  })
+
+  it('rotina comum continua em dias', () => {
+    expect(unidadeDaOfensiva('diaria', 1)).toBe('dia')
+    expect(unidadeDaOfensiva('dias_uteis', 9)).toBe('dias')
   })
 })

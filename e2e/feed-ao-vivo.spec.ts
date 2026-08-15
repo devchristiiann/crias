@@ -119,8 +119,24 @@ test.describe.serial('feed do grupo ao vivo', () => {
   })
 
   test('check-in de colega aparece para quem ja rolou ate a segunda pagina', async ({ page }) => {
+    // A espera pelo Realtime e registrada ANTES de navegar, senao a corrida e
+    // com o proprio teste: o check-in de A ia mais rapido que a entrada de B no
+    // canal, nao havia ninguem ouvindo, e a falha aparecia como "o feed nao
+    // atualizou". Esperar so a conexao abrir nao basta, e foi medido: a suite
+    // inteira continuou falhando uma vez a cada tres. O que prova que da para
+    // ouvir e a RESPOSTA do servidor ao pedido de entrada no canal, que e o
+    // `phx_reply` com status ok.
+    const socket = page.waitForEvent('websocket', (ws) => ws.url().includes('/realtime/'))
     await entrarNoApp(page, emailB)
     await page.goto(`/grupos/${grupoId}`)
+    const canal = await socket
+    await canal.waitForEvent(
+      'framereceived',
+      (quadro) =>
+        typeof quadro.payload === 'string' &&
+        quadro.payload.includes('phx_reply') &&
+        quadro.payload.includes('"status":"ok"'),
+    )
     // A primeira pagina traz os oito mais recentes, do nono para o segundo.
     await expect(page.getByText(`concluiu ${TITULOS[8]}`)).toBeVisible()
 

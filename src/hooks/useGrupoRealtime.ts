@@ -66,10 +66,11 @@ export function useGrupoRealtime(grupoId: string | undefined, habitIds: string[]
           // ele entra direto no cache. Invalidar refaria todas as paginas ja
           // roladas para descobrir a linha que o socket acabou de entregar.
           //
-          // Vale para os dois status que o feed mostra. A declaracao em
-          // validacao chega por este mesmo UPDATE, e sem ela aqui o post so
-          // apareceria para os outros na proxima busca, que e justamente quando
-          // o prazo de 24h ja andou.
+          // Vale para tudo que o feed mostra, que e toda linha com `feito_em`:
+          // check-in comum, declaracao em validacao e cada marcacao de rotina de
+          // janela. Sem isso o post so apareceria para os outros na proxima
+          // busca, que no caso da enquete e justamente quando o prazo de 24h ja
+          // andou.
           void aplicarNoFeed(cliente, grupoId, chave, linha)
         },
       )

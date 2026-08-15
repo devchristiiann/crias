@@ -45,6 +45,10 @@ function CartaoFeed({
   const alt = `Comprovação de ${nome} em ${titulo}`
   const fotoUrl = item.fotoUrl
   const aguardando = emValidacao(item.status)
+  // Rotina de janela publica a cada marcacao, e o periodo so fecha na ultima.
+  // Ate la o cartao diz onde a pessoa esta, senao a segunda ida a academia
+  // anunciaria "concluiu" quatro vezes antes de a semana acabar.
+  const parcial = item.vezesAlvo > 1 && item.status !== 'feito'
 
   return (
     <li
@@ -91,9 +95,10 @@ function CartaoFeed({
         />
       ) : (
         <p className="flex items-center gap-2 px-3 py-2.5 text-sm">
-          <Check className="size-4 shrink-0 text-success" />
+          <Check className={cn('size-4 shrink-0', parcial ? 'text-primary' : 'text-success')} />
           <span className="min-w-0 break-words">
-            concluiu <span className="font-medium">{titulo}</span>
+            {parcial ? `fez ${item.vezesFeitas} de ${item.vezesAlvo} em ` : 'concluiu '}
+            <span className="font-medium">{titulo}</span>
           </span>
         </p>
       )}

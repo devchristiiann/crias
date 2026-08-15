@@ -24,14 +24,16 @@ const SEGUNDOS_URL_FOTO = 600
 const FOTO_FEED = { largura: 960, qualidade: 70 }
 
 /**
- * O que o feed mostra.
+ * O que o feed mostra: toda ocorrencia com `feito_em`, e mais nada.
  *
- * A declaracao em validacao e post desde o instante em que sai, e nao so quando
- * a enquete fecha: ela ja tem `feito_em` gravado, entao entra na mesma ordem
- * cronologica do resto. Enquete resolvida guarda o `feito_em` da declaracao, e e
- * isso que impede o post de saltar para o topo um dia depois.
+ * A regra era uma lista branca de status, e ela nao cabia mais. Rotina de
+ * janela ("N vezes por semana") fica `pendente` ate a ultima marcacao, entao
+ * quatro das cinco idas a academia sumiam do grupo, e num grupo que exige foto
+ * isso e perder a comprovacao. `feito_em` e o instante de publicacao: quem tem,
+ * esta no feed; quem nao tem (check-in desfeito, declaracao reprovada), sai.
+ * Enquete resolvida guarda o `feito_em` da declaracao, e e isso que impede o
+ * post de saltar para o topo um dia depois.
  */
-const STATUS_NO_FEED = ['feito', 'em_validacao']
 
 export interface ItemFeed {
   id: string
@@ -42,6 +44,9 @@ export interface ItemFeed {
   fotoUrl: string | null
   /** `feito` quando ja valeu, `em_validacao` enquanto o grupo vota. */
   status: string
+  /** Marcacoes ja feitas e alvo do periodo. Com alvo maior que 1 o cartao diz o progresso. */
+  vezesFeitas: number
+  vezesAlvo: number
   /** Minutos declarados. Null fora do modulo de duracao. */
   minutos: number | null
   /** Instante em que a enquete fecha. Null fora de `em_validacao`. */
@@ -70,6 +75,8 @@ export interface LinhaAoVivo {
   foto_path?: string | null
   minutos_declarados?: number | null
   validacao_ate?: string | null
+  vezes_feitas?: number | null
+  vezes_alvo?: number | null
 }
 
 /** Chave da consulta do feed. Uma so, para o hook e para quem escreve nele. */
@@ -83,7 +90,7 @@ function prefixoDoFeed(grupoId: string) {
 }
 
 const COLUNAS =
-  'id, user_id, habit_id, feito_em, foto_path, status, minutos_declarados, validacao_ate'
+  'id, user_id, habit_id, feito_em, foto_path, status, minutos_declarados, validacao_ate, vezes_feitas, vezes_alvo'
 
 interface LinhaFeed {
   id: string
@@ -94,6 +101,8 @@ interface LinhaFeed {
   status: string
   minutos_declarados: number | null
   validacao_ate: string | null
+  vezes_feitas: number
+  vezes_alvo: number
 }
 
 interface Placar {
@@ -137,6 +146,8 @@ function montarItem(linha: LinhaFeed, fotoUrl: string | null, placar: Placar | u
     feitoEm: linha.feito_em,
     fotoUrl,
     status: linha.status,
+    vezesFeitas: linha.vezes_feitas,
+    vezesAlvo: linha.vezes_alvo,
     minutos: linha.minutos_declarados,
     validacaoAte: linha.validacao_ate,
     aFavor: placar?.aFavor ?? [],
@@ -171,7 +182,6 @@ export function useFeedGrupo(grupoId: string | undefined, habitIds: string[]) {
         .from('occurrences')
         .select(COLUNAS)
         .in('habit_id', chave.split(','))
-        .in('status', STATUS_NO_FEED)
         .not('feito_em', 'is', null)
         .order('feito_em', { ascending: false })
         // Desempate obrigatorio: sem ele, duas linhas com o mesmo instante
@@ -223,10 +233,13 @@ export function useFeedGrupo(grupoId: string | undefined, habitIds: string[]) {
  * tambem: por isso o item ja existente e SUBSTITUIDO no lugar, e nao ignorado
  * como repetido. Ignorar deixaria o post preso em "aguardando o grupo" para
  * quem esta com a tela aberta, e mover para o topo republicaria um post velho.
+ * Quando o `feito_em` MUDA a historia e outra: e marcacao nova de rotina de
+ * janela, publicacao nova, e ela vai para o topo. Deixar no lugar prenderia a
+ * segunda ida a academia na posicao da primeira.
  *
- * Desfazer o check-in chega aqui pelo mesmo caminho, como UPDATE que sai dos
- * status do feed. Sem esse ramo a comprovacao desfeita, ou a declaracao
- * reprovada, ficaria no feed ate a proxima busca.
+ * Desfazer o check-in chega aqui pelo mesmo caminho, como UPDATE que zera o
+ * `feito_em`. Sem esse ramo a comprovacao desfeita, ou a declaracao reprovada,
+ * ficaria no feed ate a proxima busca.
  */
 export async function aplicarNoFeed(
   cliente: QueryClient,
@@ -241,7 +254,7 @@ export async function aplicarNoFeed(
   // este check-in.
   if (!id || !cliente.getQueryData<DadosFeed>(chaveConsulta)) return
 
-  if (!STATUS_NO_FEED.includes(status) || !feitoEm) {
+  if (!feitoEm) {
     cliente.setQueryData<DadosFeed>(chaveConsulta, (dados) =>
       dados && {
         ...dados,
@@ -277,6 +290,10 @@ export async function aplicarNoFeed(
         status,
         minutos_declarados: linha.minutos_declarados ?? null,
         validacao_ate: linha.validacao_ate ?? null,
+        // O Realtime pode entregar a linha sem as colunas de contagem. Cair em
+        // 0 de 1 desenharia "fez 0 de 1", entao o padrao e o cartao simples.
+        vezes_feitas: linha.vezes_feitas ?? 1,
+        vezes_alvo: linha.vezes_alvo ?? 1,
       },
       (foto && fotos.get(foto)) || null,
       // O voto vive em outra tabela e nao viaja neste evento. Declaracao que
@@ -285,7 +302,7 @@ export async function aplicarNoFeed(
       anterior,
     )
 
-    if (anterior) {
+    if (anterior && anterior.feitoEm === feitoEm) {
       return {
         ...dados,
         pages: dados.pages.map((p) => ({
@@ -294,7 +311,13 @@ export async function aplicarNoFeed(
         })),
       }
     }
-    const [primeira, ...resto] = dados.pages
+    // Publicacao nova. O filtro e no-op quando o item ainda nao estava no feed,
+    // e tira a versao antiga quando o `feito_em` avancou: sem ele o cartao
+    // apareceria duas vezes, com a mesma chave.
+    const [primeira, ...resto] = dados.pages.map((p) => ({
+      ...p,
+      itens: p.itens.filter((i) => i.id !== id),
+    }))
     return { ...dados, pages: [{ ...primeira, itens: [item, ...primeira.itens] }, ...resto] }
   })
 }
@@ -362,9 +385,7 @@ export async function aplicarVotoNoFeed(
 
   const linha = data as LinhaFeed
   escreverNoFeed(cliente, grupoId, occ, (item) =>
-    STATUS_NO_FEED.includes(linha.status) && linha.feito_em
-      ? montarItem(linha, item.fotoUrl, undefined)
-      : null,
+    linha.feito_em ? montarItem(linha, item.fotoUrl, undefined) : null,
   )
 }
 
