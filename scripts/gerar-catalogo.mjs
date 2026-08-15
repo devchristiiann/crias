@@ -131,12 +131,13 @@ export const BASES_ANTIGAS = ['base-01', 'base-02', 'base-03', 'base-04', 'base-
  * Entrar na lista de cima os transformaria em peca de loja que nao existe.
  *
  * Estao aqui, e nao escritos na tela, so para receberem o mesmo carimbo de
- * versao das outras artes. Sem ele, o escudo e a pocao ficam presos no cache
- * do aparelho quando o desenho muda, igual aos pedestais ficaram.
+ * versao das outras artes. Sem ele, escudo e pocao ficam presos no cache do
+ * aparelho quando o desenho muda, igual aos pedestais ficaram.
  */
 export const SPRITES_UI = {
-  escudo: '${versionar('/sprites/ui/escudo.png')}',
   pocao: '${versionar('/sprites/ui/pocao-vida.png')}',
+  pocaoOuro: '${versionar('/sprites/ui/pocao-ouro.png')}',
+  escudo: '${versionar('/sprites/ui/escudo.png')}',
 } as const
 `
 writeFileSync(RAIZ+'/src/lib/catalogo.ts', ts)

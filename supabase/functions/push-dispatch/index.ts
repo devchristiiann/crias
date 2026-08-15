@@ -34,6 +34,19 @@ interface LinhaToque {
   auth: string
 }
 
+interface LinhaAviso {
+  aviso_id: string
+  user_id: string
+  titulo: string
+  corpo: string
+  url: string | null
+  // Nulos quando a conta nao tem aparelho inscrito. A fila usa left join de
+  // proposito: sem push a pessoa ainda precisa do aviso na central do app.
+  endpoint: string | null
+  p256dh: string | null
+  auth: string | null
+}
+
 function comparacaoConstante(a: string, b: string) {
   if (a.length !== b.length) return false
   let diferenca = 0
@@ -167,8 +180,97 @@ Deno.serve(async (requisicao) => {
     }
   }
 
+  // Drena a fila de avisos do produto depois da escada de toques. E uma fila
+  // separada de toques_pendentes: nao nasce de ocorrencia, entao nao tem
+  // token_rapido nem acao de concluir, so titulo, corpo e url para abrir.
+  let avisosEnviados = 0
+  const avisosCarimbados = new Set<string>()
+
+  try {
+    const { data: avisos, error: erroAvisos } = await supabase.rpc('avisos_pendentes', {
+      p_limite: 200,
+    })
+    if (erroAvisos) throw erroAvisos
+
+    for (const aviso of (avisos ?? []) as LinhaAviso[]) {
+      const cargaAviso: Record<string, unknown> = {
+        titulo: aviso.titulo,
+        corpo: aviso.corpo,
+        tag: `aviso-${aviso.aviso_id}`,
+        api: apiUrl,
+      }
+      if (aviso.url !== null) cargaAviso.url = aviso.url
+
+      // Sem aparelho nao ha o que cifrar, mas o aviso segue para o carimbo e
+      // para a central: quem nunca ligou o push e justamente quem so vai
+      // descobrir o recado abrindo o app.
+      if (aviso.endpoint && aviso.p256dh && aviso.auth) {
+        try {
+          const resultado = await enviarPush(
+            { endpoint: aviso.endpoint, p256dh: aviso.p256dh, auth: aviso.auth },
+            cargaAviso,
+            chaves,
+          )
+
+          if (resultado.expirada) {
+            await supabase.rpc('remover_sub', { p_endpoint: aviso.endpoint })
+            expiradas += 1
+          } else if (resultado.status >= 200 && resultado.status < 300) {
+            avisosEnviados += 1
+          }
+        } catch (erro) {
+          console.error('falha ao enviar aviso', aviso.aviso_id, String(erro))
+        }
+      }
+
+      // A fila devolve uma linha por aparelho, mas o carimbo e a linha na
+      // central sao por aviso: a primeira linha processada de cada aviso
+      // carimba, tenha o push saido, falhado ou nem existido aparelho para
+      // tentar, e as linhas seguintes do mesmo aviso so tentam o proprio
+      // envio. Aviso que falha ao enviar tambem precisa ser carimbado, senao
+      // reenfileira e tenta de novo a cada 5 minutos para sempre, sem nunca
+      // aparecer na central.
+      //
+      // ponytail: esta fila nao passa pelo teto de 10 notificacoes por dia
+      // por usuario que a escada de toques respeita. Hoje e um aviso por
+      // conta, uma vez, entao nao ha risco. Se um dia virar canal recorrente
+      // de produto, o teto precisa ser estendido para ca tambem, senao vira
+      // spam sem trava.
+      if (!avisosCarimbados.has(aviso.aviso_id)) {
+        avisosCarimbados.add(aviso.aviso_id)
+        const { error: erroCarimbo } = await supabase.rpc('marcar_aviso_enviado', {
+          p_aviso: aviso.aviso_id,
+        })
+
+        if (erroCarimbo) {
+          console.error('falha ao carimbar aviso', aviso.aviso_id, erroCarimbo.message)
+        } else {
+          // Registro para a central de notificacoes, mesma regra da escada: o
+          // push e o pilar, a linha e so o registro, entao falha aqui nao volta.
+          try {
+            const { error: erroNotificacao } = await supabase.from('notificacoes').insert({
+              user_id: aviso.user_id,
+              titulo: aviso.titulo,
+              corpo: aviso.corpo,
+              url: aviso.url,
+            })
+            if (erroNotificacao) {
+              console.error('falha ao gravar notificacao de aviso', aviso.aviso_id, erroNotificacao.message)
+            }
+          } catch (erro) {
+            console.error('falha ao gravar notificacao de aviso', aviso.aviso_id, String(erro))
+          }
+        }
+      }
+    }
+  } catch (erro) {
+    // A escada de toques ja rodou e ja respondeu por quem depende de push de
+    // ocorrencia. Um problema so na fila de avisos nao pode derrubar isso.
+    console.error('falha ao buscar avisos pendentes', String(erro))
+  }
+
   return new Response(
-    JSON.stringify({ candidatos: linhas.length, enviados, expiradas }),
+    JSON.stringify({ candidatos: linhas.length, enviados, expiradas, avisosEnviados }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   )
 })

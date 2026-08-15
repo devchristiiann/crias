@@ -175,6 +175,11 @@ export function useCheckIn() {
     onSuccess: (resultado) => {
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       cliente.invalidateQueries({ queryKey: ['perfil'] })
+      // A primeira rotina concluída do dia grava evento `descanso` e devolve 5
+      // de vida. Sem esta chave a barra subia e a trilha abaixo dela continuava
+      // com a lista velha, que é o bug que a trilha existe para não deixar
+      // acontecer.
+      cliente.invalidateQueries({ queryKey: ['vida'] })
       cliente.invalidateQueries({ queryKey: ['trilha'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
       // Skin ganha no baú muda o acervo, igual a uma compra na loja.
@@ -206,6 +211,9 @@ export function useDesfazerCheckIn() {
     onSuccess: () => {
       cliente.invalidateQueries({ queryKey: ['ocorrencias'] })
       cliente.invalidateQueries({ queryKey: ['perfil'] })
+      // Desfazer mexe nos mesmos dados, e o evento de vida do `descanso` é um
+      // deles: sem esta chave a lista fica afirmando um ganho já revertido.
+      cliente.invalidateQueries({ queryKey: ['vida'] })
       cliente.invalidateQueries({ queryKey: ['trilha'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
     },

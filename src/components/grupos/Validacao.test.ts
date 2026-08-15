@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatarDuracao, prazo } from './EnquetesGrupo'
+import { formatarDuracao, prazo } from './Validacao'
 
 describe('formatarDuracao', () => {
   it('mostra horas e minutos como a pessoa fala', () => {
@@ -14,8 +14,8 @@ describe('prazo', () => {
   const agora = new Date('2026-08-13T12:00:00Z')
 
   it('conta as horas que faltam', () => {
-    const p = prazo('2026-08-15T12:00:00Z', agora)
-    expect(p).toEqual({ encerrado: false, rotulo: 'Fecha em 48h' })
+    const p = prazo('2026-08-14T12:00:00Z', agora)
+    expect(p).toEqual({ encerrado: false, rotulo: 'Fecha em 24h' })
   })
 
   it('menos de uma hora nao vira zero', () => {

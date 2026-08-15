@@ -1,6 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { aplicarNoFeed, type LinhaAoVivo } from '@/hooks/useFeedGrupo'
+import {
+  aplicarNoFeed,
+  aplicarVotoDeOutroNoFeed,
+  type LinhaAoVivo,
+} from '@/hooks/useFeedGrupo'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -61,7 +65,38 @@ export function useGrupoRealtime(grupoId: string | undefined, habitIds: string[]
           // O feed nao e invalidado: o registro que chegou ja e o cartao novo, e
           // ele entra direto no cache. Invalidar refaria todas as paginas ja
           // roladas para descobrir a linha que o socket acabou de entregar.
+          //
+          // Vale para os dois status que o feed mostra. A declaracao em
+          // validacao chega por este mesmo UPDATE, e sem ela aqui o post so
+          // apareceria para os outros na proxima busca, que e justamente quando
+          // o prazo de 24h ja andou.
           void aplicarNoFeed(cliente, grupoId, chave, linha)
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          // INSERT e UPDATE no mesmo tratador: a chave e `(occurrence_id,
+          // user_id)`, entao trocar de voto SUBSTITUI a linha e chega como
+          // UPDATE. Cobrir so o INSERT deixaria o placar preso no primeiro voto.
+          // Nao ha filtro possivel aqui, a tabela nao tem `habit_id`; o que
+          // segura o volume e a RLS, que so entrega voto de enquete visivel.
+          event: '*',
+          schema: 'public',
+          table: 'votos_validacao',
+        },
+        (evento) => {
+          const voto = evento.new as
+            | { occurrence_id?: string; user_id?: string; aprova?: boolean }
+            | null
+          // DELETE chega com `new` vazio, e sem os tres campos nao ha placar a
+          // escrever.
+          if (!voto?.occurrence_id || !voto.user_id || typeof voto.aprova !== 'boolean') return
+
+          // O placar entra escrito no cache do feed. Invalidar refaria todas as
+          // paginas ja roladas, com todas as fotos reassinadas, por um contador
+          // que o proprio evento ja trouxe.
+          aplicarVotoDeOutroNoFeed(cliente, grupoId, voto.occurrence_id, voto.user_id, voto.aprova)
         },
       )
       .subscribe()

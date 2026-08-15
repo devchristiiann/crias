@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Coins, Gift, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { Pocoes } from '@/components/loja/Pocoes'
 import { Botao } from '@/components/ui/Botao'
 import { Campo } from '@/components/ui/Campo'
 import { Confirmar } from '@/components/ui/Confirmar'
@@ -56,6 +57,9 @@ export function Loja() {
       </header>
 
       <Premios ouro={ouro} aoCriar={() => setCriando(true)} criando={criando} setCriando={setCriando} />
+      {/* Prateleira própria entre o que a pessoa cadastrou e o que ela veste:
+          poção não se coleciona, tem quantidade e é gasta. */}
+      <Pocoes perfil={perfil} ouro={ouro} />
       <Colecao ouro={ouro} perfil={perfil} />
     </section>
   )

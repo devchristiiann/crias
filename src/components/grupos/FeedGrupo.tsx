@@ -1,18 +1,21 @@
 import { Check, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
-import { EnquetesGrupo } from '@/components/grupos/EnquetesGrupo'
 import {
   FotoAmpliada,
   FotoComprovacao,
   type FotoAberta,
 } from '@/components/grupos/FotoComprovacao'
+import { BlocoValidacao } from '@/components/grupos/Validacao'
 import { ID_CONTEUDO } from '@/components/layout/AppShell'
 import { EstadoErro } from '@/components/ui/EstadoErro'
 import { useFeedGrupo, type ItemFeed } from '@/hooks/useFeedGrupo'
 import type { DetalheGrupo, MembroGrupo } from '@/hooks/useGrupos'
+import { useSessao } from '@/hooks/useSessao'
 import { dataHoraSP } from '@/lib/data'
 import { iconeDoHabito } from '@/lib/icones'
+import { emValidacao } from '@/lib/modulos'
+import { cn } from '@/lib/utils'
 
 /**
  * Quanto antes do fim da lista a proxima pagina comeca a ser buscada. Esperar o
@@ -22,23 +25,36 @@ const ANTECEDENCIA = '300px'
 
 function CartaoFeed({
   item,
-  membro,
+  membros,
   desafio,
+  grupoId,
+  usuarioId,
   aoAmpliar,
 }: {
   item: ItemFeed
-  membro: MembroGrupo | undefined
+  membros: Map<string, MembroGrupo>
   desafio: DetalheGrupo['desafios'][number] | undefined
+  grupoId: string
+  usuarioId: string | null
   aoAmpliar: (foto: FotoAberta) => void
 }) {
+  const membro = membros.get(item.usuarioId)
   const Icone = iconeDoHabito(desafio?.icone ?? '')
   const nome = membro?.nome ?? 'Alguém'
   const titulo = desafio?.titulo ?? 'um desafio'
   const alt = `Comprovação de ${nome} em ${titulo}`
   const fotoUrl = item.fotoUrl
+  const aguardando = emValidacao(item.status)
 
   return (
-    <li className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <li
+      // O contorno tracejado e o que diz "ainda nao valeu" sem tirar o post da
+      // ordem cronologica nem pinta-lo de erro.
+      className={cn(
+        'overflow-hidden rounded-xl border bg-card shadow-sm',
+        aguardando ? 'border-dashed border-warning/60' : 'border-border',
+      )}
+    >
       <div className="flex items-center gap-2.5 p-3">
         {/* Membro que saiu do grupo nao tem avatar para montar. O circulo vazio
             mantem o alinhamento da linha em vez de encolher o cabecalho. */}
@@ -65,18 +81,33 @@ function CartaoFeed({
 
       {fotoUrl && <FotoComprovacao url={fotoUrl} alt={alt} aoAmpliar={aoAmpliar} />}
 
-      <p className="flex items-center gap-2 px-3 py-2.5 text-sm">
-        <Check className="size-4 shrink-0 text-success" />
-        <span className="min-w-0 break-words">
-          concluiu <span className="font-medium">{titulo}</span>
-        </span>
-      </p>
+      {aguardando ? (
+        <BlocoValidacao
+          item={item}
+          titulo={titulo}
+          membros={membros}
+          grupoId={grupoId}
+          usuarioId={usuarioId}
+        />
+      ) : (
+        <p className="flex items-center gap-2 px-3 py-2.5 text-sm">
+          <Check className="size-4 shrink-0 text-success" />
+          <span className="min-w-0 break-words">
+            concluiu <span className="font-medium">{titulo}</span>
+          </span>
+        </p>
+      )}
     </li>
   )
 }
 
 /**
  * Atividade do grupo: quem concluiu o que, quando e com qual comprovacao.
+ *
+ * A declaracao que espera o voto do grupo e post daqui, no lugar cronologico
+ * dela. Ela ja teve secao propria acima da lista, ordenada pelo prazo, e o
+ * efeito era o contrario do pretendido: a declaracao mais recente caia no fim
+ * da secao, longe de quem acabou de ver a pessoa declarar.
  *
  * Rola sem fim, uma pagina por vez, e a pagina seguinte so e pedida quando a
  * sentinela encosta na tela. Sem isso, um grupo com um ano de historico
@@ -88,6 +119,7 @@ export function FeedGrupo({ grupo }: { grupo: DetalheGrupo }) {
     useFeedGrupo(grupo.id, ids)
   const [ampliada, setAmpliada] = useState<FotoAberta | null>(null)
   const sentinela = useRef<HTMLDivElement>(null)
+  const { usuarioId } = useSessao()
 
   const membros = useMemo(() => new Map(grupo.membros.map((m) => [m.id, m])), [grupo.membros])
   const desafios = useMemo(() => new Map(grupo.desafios.map((d) => [d.id, d])), [grupo.desafios])
@@ -123,53 +155,49 @@ export function FeedGrupo({ grupo }: { grupo: DetalheGrupo }) {
   if (grupo.desafios.length === 0) return null
 
   return (
-    <div className="space-y-5">
-      {/* Enquete aberta vem antes da atividade: e a unica coisa desta tela que
-          tem prazo, e rolar ate ela seria o mesmo que nao existir. */}
-      <EnquetesGrupo grupo={grupo} />
+    <section className="space-y-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Atividade
+      </h2>
 
-      <section className="space-y-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Atividade
-        </h2>
+      {isPending && (
+        <div className="flex justify-center py-6">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-        {isPending && (
-          <div className="flex justify-center py-6">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
+      {isError && (
+        <EstadoErro mensagem="Não deu para carregar a atividade." aoTentarDeNovo={refetch} />
+      )}
 
-        {isError && (
-          <EstadoErro mensagem="Não deu para carregar a atividade." aoTentarDeNovo={refetch} />
-        )}
+      {!isPending && !isError && itens.length === 0 && (
+        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          Ninguém concluiu nada ainda. O primeiro check-in aparece aqui.
+        </p>
+      )}
 
-        {!isPending && !isError && itens.length === 0 && (
-          <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-            Ninguém concluiu nada ainda. O primeiro check-in aparece aqui.
-          </p>
-        )}
+      <ul className="space-y-3">
+        {itens.map((item) => (
+          <CartaoFeed
+            key={item.id}
+            item={item}
+            membros={membros}
+            desafio={desafios.get(item.habitId)}
+            grupoId={grupo.id}
+            usuarioId={usuarioId}
+            aoAmpliar={setAmpliada}
+          />
+        ))}
+      </ul>
 
-        <ul className="space-y-3">
-          {itens.map((item) => (
-            <CartaoFeed
-              key={item.id}
-              item={item}
-              membro={membros.get(item.usuarioId)}
-              desafio={desafios.get(item.habitId)}
-              aoAmpliar={setAmpliada}
-            />
-          ))}
-        </ul>
+      <div ref={sentinela} aria-hidden="true" />
+      {isFetchingNextPage && (
+        <div className="flex justify-center py-3">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-        <div ref={sentinela} aria-hidden="true" />
-        {isFetchingNextPage && (
-          <div className="flex justify-center py-3">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
-
-        <FotoAmpliada foto={ampliada} aoFechar={() => setAmpliada(null)} />
-      </section>
-    </div>
+      <FotoAmpliada foto={ampliada} aoFechar={() => setAmpliada(null)} />
+    </section>
   )
 }

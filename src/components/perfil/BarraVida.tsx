@@ -33,9 +33,13 @@ export function BarraVida({ vida }: { vida: number }) {
           style={{ width: `${proporcao * 100}%` }}
         />
       </div>
+      {/* Os números saem do servidor, e a lista mente assim que eles mudam. A
+          0034 já pegou este texto desatualizado uma vez: mexer na perda de vida
+          no banco é mexer aqui no mesmo movimento. */}
       <ul className="space-y-0.5 pt-1 text-xs text-muted-foreground">
-        <li>Rotina parada por 24 horas tira 10.</li>
+        <li>Rotina parada por 24 horas tira 5, e o dia inteiro tira no máximo 10.</li>
         <li>Recaída de hábito de perda tira 5.</li>
+        <li>A primeira rotina concluída do dia devolve 5. Poção de vida devolve 25.</li>
         <li>
           Vida em zero: o personagem adoece, o progresso do baú volta ao começo e a vida enche de
           novo. Suas ofensivas ficam de pé.

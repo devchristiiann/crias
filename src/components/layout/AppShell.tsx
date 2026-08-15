@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
+import { ModalBrinde } from '@/components/brinde/ModalBrinde'
 import { Carregando } from '@/components/ui/Carregando'
 import { useBadge } from '@/hooks/useBadge'
 import { BottomNav } from './BottomNav'
@@ -55,6 +56,11 @@ export function AppShell() {
         </div>
       </main>
       <BottomNav />
+      {/* Fora do `<main>` e fora do `Suspense`: o aviso de brinde precisa
+          aparecer em qualquer tela, inclusive enquanto o pedaco da pagina ainda
+          esta chegando. Fora da area que rola porque ele e um `<dialog>` e vive
+          na camada de cima, sem participar da rolagem do conteudo. */}
+      <ModalBrinde />
     </div>
   )
 }

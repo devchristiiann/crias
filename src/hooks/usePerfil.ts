@@ -20,6 +20,13 @@ export interface Perfil {
   doente: boolean
   /** Escudos guardados. Cada um salva as ofensivas de um dia inteiro. */
   escudos: number
+  /** Poções de vida guardadas. Cada uma devolve 25 de vida quando usada. */
+  pocoes_vida: number
+  /** Poções de ouro guardadas. Cada uma dobra o ouro das rotinas de um dia. */
+  pocoes_ouro: number
+  /** Dia em que o ouro está dobrado, em São Paulo. Null quando não há poção
+   *  ativa. O servidor é quem confere: a tela só mostra o aviso. */
+  ouro_dobrado_em: string | null
   /** Dia produtivo em que a contagem do baú recomeçou. Zerar a vida joga o
    *  progresso fora sem apagar histórico, e é daqui que a trilha desloca o
    *  desenho: sem isso ela marcaria baú num nó que o servidor não paga. */
@@ -38,7 +45,7 @@ export function usePerfil() {
         // Colunas listadas uma a uma de proposito: com select('*') qualquer
         // coluna sensivel nova vaza para o navegador sem ninguem perceber.
         .select(
-          'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido, doente, escudos, bau_base',
+          'id, nome, avatar_base, item_equipado, cenario_equipado, fundo_equipado, ouro, vida, xp, personagem_definido, doente, escudos, bau_base, pocoes_vida, pocoes_ouro, ouro_dobrado_em',
         )
         .eq('id', usuarioId!)
         // `maybeSingle` porque `single` erra quando nao ha linha, e o erro dele

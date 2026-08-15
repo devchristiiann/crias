@@ -2,7 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useSessao } from './useSessao'
 
-export type MotivoVida = 'atraso' | 'recaida' | 'renascimento' | 'escudo'
+export type MotivoVida =
+  | 'atraso'
+  | 'recaida'
+  | 'renascimento'
+  | 'escudo'
+  | 'descanso'
+  | 'pocao'
 
 export interface VidaEvento {
   id: string
@@ -21,6 +27,11 @@ export const MOTIVO_EM_PORTUGUES: Record<MotivoVida, string> = {
   // O escudo some do saldo sem mexer na vida. Sem esta linha a trilha mostrava
   // um evento em branco, que é justamente o que a lista existe para evitar.
   escudo: 'Escudo usado, ofensiva salva',
+  // Os dois motivos que a 0034 passou a gravar. O banco valida a lista numa
+  // constraint: motivo novo lá é linha nova aqui, senão a trilha volta a mostrar
+  // evento sem nome, que foi exatamente o bug que o escudo causou.
+  descanso: 'Primeira rotina do dia',
+  pocao: 'Poção de vida',
 }
 
 /** O recente basta: a barra precisa explicar o que acabou de acontecer, não a vida inteira. */

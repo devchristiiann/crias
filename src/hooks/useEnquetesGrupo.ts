@@ -1,39 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { assinarEmLote } from '@/lib/storage'
+import { aplicarVotoNoFeed } from '@/hooks/useFeedGrupo'
 import { supabase } from '@/lib/supabase'
-
-/**
- * Validade da URL assinada do print. Mesma janela curta do feed: o bucket e
- * privado e o link vale para quem estiver com ele em maos.
- */
-const SEGUNDOS_URL_FOTO = 600
-
-/** Mesma entrega do feed: o print e o mesmo `FotoComprovacao` das duas listas. */
-const FOTO_PRINT = { largura: 960, qualidade: 70 }
 
 export interface Enquete {
   /** Id da ocorrencia em validacao. E ele que a RPC recebe. */
   id: string
-  autorId: string
-  habitId: string
-  /** Quanto a pessoa declarou de uso, em minutos. */
-  minutos: number
-  /** Prazo de 48h gravado na declaracao. */
-  validacaoAte: string
-  /** URL assinada do print. Null quando a foto nao assinou. */
-  fotoUrl: string | null
   /** Ids de quem validou e de quem contestou. O voto e aberto por decisao do dono. */
   aFavor: string[]
   contra: string[]
-}
-
-interface LinhaEnquete {
-  id: string
-  user_id: string
-  habit_id: string
-  minutos_declarados: number | null
-  validacao_ate: string | null
-  foto_path: string | null
 }
 
 interface LinhaVoto {
@@ -43,14 +17,16 @@ interface LinhaVoto {
 }
 
 /**
- * Enquetes abertas do grupo, da que fecha primeiro para a que fecha depois.
+ * Enquetes abertas do grupo, so com o placar de cada uma.
  *
- * Sem paginacao de proposito: so existe enquete aberta enquanto o prazo de 48h
+ * A lista do grupo nao usa mais este hook: a enquete virou post do feed, e quem
+ * traz o placar de la e o proprio `useFeedGrupo`. O que sobrou aqui e a folha
+ * do desafio na tela Hoje, que precisa saber se a declaracao ja tem voto para
+ * decidir se ainda da para desfazer, e pergunta por um desafio so.
+ *
+ * Sem paginacao de proposito: so existe enquete aberta enquanto o prazo de 24h
  * corre, e a resolucao tira a ocorrencia de `em_validacao`. A lista se esvazia
  * sozinha, entao ela e curta por construcao.
- *
- * O nome de quem votou nao sai daqui: os membros ja vieram em `useGrupo`, e
- * buscar perfil de novo por enquete seria a mesma linha lida duas vezes.
  */
 export function useEnquetesGrupo(grupoId: string | undefined, habitIds: string[]) {
   // Mesma chave estavel do feed: a lista chega como array novo a cada render, e
@@ -63,29 +39,20 @@ export function useEnquetesGrupo(grupoId: string | undefined, habitIds: string[]
     queryFn: async (): Promise<Enquete[]> => {
       const { data, error } = await supabase
         .from('occurrences')
-        .select('id, user_id, habit_id, minutos_declarados, validacao_ate, foto_path')
+        .select('id')
         .in('habit_id', chave.split(','))
         .eq('status', 'em_validacao')
-        .order('validacao_ate', { ascending: true })
       if (error) throw error
 
-      const linhas = (data ?? []) as LinhaEnquete[]
-      if (linhas.length === 0) return []
+      const ids = (data ?? []).map((l) => (l as { id: string }).id)
+      if (ids.length === 0) return []
 
-      const [{ data: votos, error: erroVotos }, fotos] = await Promise.all([
-        supabase
-          .from('votos_validacao')
-          .select('occurrence_id, user_id, aprova')
-          .in('occurrence_id', linhas.map((l) => l.id)),
-        assinarEmLote(
-          'checkins',
-          linhas.map((l) => l.foto_path).filter((c): c is string => Boolean(c)),
-          SEGUNDOS_URL_FOTO,
-          FOTO_PRINT,
-        ),
-      ])
+      const { data: votos, error: erroVotos } = await supabase
+        .from('votos_validacao')
+        .select('occurrence_id, user_id, aprova')
+        .in('occurrence_id', ids)
       // Falhar em silencio aqui mostraria placar zerado numa enquete que ja tem
-      // voto, e a pessoa votaria de novo achando que o toque anterior se perdeu.
+      // voto, e o desfazer apareceria numa declaracao que o grupo ja julgou.
       if (erroVotos) throw erroVotos
 
       const porOcorrencia = new Map<string, LinhaVoto[]>()
@@ -95,15 +62,10 @@ export function useEnquetesGrupo(grupoId: string | undefined, habitIds: string[]
         porOcorrencia.set(voto.occurrence_id, atual)
       }
 
-      return linhas.map((l) => {
-        const dela = porOcorrencia.get(l.id) ?? []
+      return ids.map((id) => {
+        const dela = porOcorrencia.get(id) ?? []
         return {
-          id: l.id,
-          autorId: l.user_id,
-          habitId: l.habit_id,
-          minutos: l.minutos_declarados ?? 0,
-          validacaoAte: l.validacao_ate ?? '',
-          fotoUrl: (l.foto_path && fotos.get(l.foto_path)) || null,
+          id,
           aFavor: dela.filter((v) => v.aprova).map((v) => v.user_id),
           contra: dela.filter((v) => !v.aprova).map((v) => v.user_id),
         }
@@ -135,8 +97,12 @@ const ERROS_VOTO: Record<string, string> = {
  *
  * Quem decide o resultado e o servidor. A tela nunca soma os votos para
  * adivinhar se aprovou, e nunca mostra ouro antes de a enquete fechar.
+ *
+ * `usuarioId` vem por parametro em vez de sair de `useSessao` aqui dentro: cada
+ * post em validacao monta a sua mutation, e uma assinatura de sessao por cartao
+ * seria trabalho repetido por uma informacao que a lista ja tem em maos.
  */
-export function useVotarValidacao(grupoId: string | undefined) {
+export function useVotarValidacao(grupoId: string | undefined, usuarioId: string | null) {
   const cliente = useQueryClient()
 
   return useMutation({
@@ -160,13 +126,27 @@ export function useVotarValidacao(grupoId: string | undefined) {
       }
       return resultado
     },
-    onSuccess: (resultado) => {
-      // Enquete resolvida sai do topo, vira linha no feed e mexe no ranking:
-      // o grupo inteiro precisa ser relido. Voto que so muda o placar recarrega
-      // apenas a lista de enquetes.
-      cliente.invalidateQueries({
-        queryKey: resultado.resolvida ? ['grupo', grupoId] : ['grupo', grupoId, 'enquetes'],
-      })
+    onSuccess: (resultado, { occ, aprova }) => {
+      // O feed nunca e invalidado: a enquete E o post, e o resultado do voto
+      // entra escrito no cache. Invalidar `['grupo', grupoId]` casa por prefixo
+      // e levaria o feed junto, refazendo todas as paginas ja roladas com todas
+      // as fotos reassinadas por causa de um toque.
+      cliente.invalidateQueries({ queryKey: ['grupo', grupoId, 'enquetes'] })
+      // Enquete resolvida paga ouro e mexe no ranking, que vive no detalhe do
+      // grupo. Voto que so muda o placar nao mexe em nada disso.
+      if (resultado.resolvida) {
+        cliente.invalidateQueries({ queryKey: ['grupo', grupoId], exact: true })
+      }
+      if (grupoId && usuarioId) {
+        void aplicarVotoNoFeed(
+          cliente,
+          grupoId,
+          occ,
+          usuarioId,
+          aprova,
+          Boolean(resultado.resolvida),
+        )
+      }
     },
   })
 }

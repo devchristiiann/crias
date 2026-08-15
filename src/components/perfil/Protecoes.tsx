@@ -1,21 +1,21 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Botao } from '@/components/ui/Botao'
 import { Confirmar } from '@/components/ui/Confirmar'
+import { usePerfil } from '@/hooks/usePerfil'
 import { SPRITES_UI } from '@/lib/catalogo'
-import { PRECO_CURA, PRECO_ESCUDO } from '@/lib/modulos'
+import { PRECO_CURA } from '@/lib/modulos'
 import { supabase } from '@/lib/supabase'
 
 interface Resposta {
-  ok?: boolean
-  ouro?: number
-  escudos?: number
   error?: string
   falta?: number
 }
 
 /**
- * Traducao dos codigos que `curar` e `comprar_escudo` devolvem dentro de um 200.
+ * Traducao dos codigos que `curar` devolve dentro de um 200.
  * `ouro_insuficiente` fica de fora porque a mensagem dele carrega o `falta` que
  * o servidor calculou: dizer "sem ouro" sem o numero nao diz o que fazer.
  */
@@ -27,7 +27,7 @@ const ERROS: Record<string, string> = {
  * Arte de `scripts/gerar-sprites-ui.mjs`. Sao icone de tela, nao peca de loja:
  * nao tem id em `avatar_items`, nao tem preco e nao entram em `CATALOGO`.
  *
- * Entram como sprite e nao como icone de traco porque escudo e cura sao itens
+ * Entram como sprite e nao como icone de traco porque escudo e pocao sao itens
  * do jogo, e o jogo inteiro e pixel art. Ficam em 20px: em 16 o desenho do
  * escudo vira mancha, e 24 empurra a altura da linha.
  *
@@ -35,7 +35,7 @@ const ERROS: Record<string, string> = {
  * carimbo de versao do conteudo. Escrito a mao, redesenhar o escudo nao mudaria
  * a URL e o aparelho continuaria mostrando o desenho antigo.
  */
-const { escudo: ESCUDO, pocao: POCAO } = SPRITES_UI
+const { escudo: ESCUDO, pocao: POCAO, pocaoOuro: POCAO_OURO } = SPRITES_UI
 const SPRITE = 'size-5 shrink-0'
 /**
  * O mesmo sprite, sobre a propria casa.
@@ -57,106 +57,112 @@ function mensagem(resposta: Resposta): string {
 }
 
 /**
- * Escudo e cura, no mesmo bloco onde o estado do personagem aparece.
+ * O que a pessoa tem guardado, e a cura, no mesmo bloco onde o estado do
+ * personagem aparece.
  *
- * Preco e resultado vem do servidor: as constantes daqui existem so para a tela
- * dizer quanto custa antes do toque. Se as duas divergirem, a RPC recusa e o
- * numero que a pessoa ve na folha e o que o servidor mandou.
+ * Comprar saiu daqui: escudo e as duas pocoes sao vendidos na aba Pocoes da
+ * Loja, onde estao o preco, o saldo e o resto do inventario. Dois lugares para
+ * a mesma compra divergiam de preco e de estado, como ja aconteceu com a troca
+ * de personagem. A cura fica porque doenca e outra coisa: ela nao e item de
+ * prateleira, e so aparece quando o personagem esta doente.
+ *
+ * Preco e resultado da cura vem do servidor: a constante daqui existe so para a
+ * tela dizer quanto custa antes do toque.
  */
 export function Protecoes({ doente, escudos }: { doente: boolean; escudos: number }) {
   const cliente = useQueryClient()
-  // O token nasce no toque que abre a folha de confirmacao, junto com a acao,
-  // nao dentro de `mutationFn`. Assim toda retentativa daquele mesmo toque
-  // (retry automatico do React Query, ou um novo clique em Confirmar depois
-  // de um erro de rede) reenvia as mesmas `variables` e o mesmo token, e a
-  // RPC devolve o resultado guardado em vez de cobrar de novo. Fechar a
-  // folha ou tocar de novo em Comprar escudo ou Curar gera um token novo.
-  const [confirmando, setConfirmando] = useState<{ acao: 'escudo' | 'cura'; token: string } | null>(
-    null,
-  )
+  // `escudos` continua vindo por prop, que e como a trilha ja passava, e as duas
+  // pocoes saem do mesmo perfil que a trilha carregou: e o mesmo cache do React
+  // Query, entao ler aqui nao custa uma ida a rede.
+  const { data: perfil } = usePerfil()
+  // O token nasce no toque que abre a folha de confirmacao, nao dentro de
+  // `mutationFn`. Assim toda retentativa daquele mesmo toque (retry automatico
+  // do React Query, ou um novo clique em Confirmar depois de um erro de rede)
+  // reenvia as mesmas `variables` e o mesmo token, e a RPC devolve o resultado
+  // guardado em vez de cobrar de novo. Fechar a folha ou tocar de novo em Curar
+  // gera um token novo.
+  const [token, setToken] = useState<string | null>(null)
 
-  const agir = useMutation({
-    mutationFn: async ({
-      acao,
-      token,
-    }: {
-      acao: 'escudo' | 'cura'
-      token: string
-    }): Promise<Resposta> => {
-      const { data, error } = await supabase.rpc(acao === 'cura' ? 'curar' : 'comprar_escudo', {
-        p_token: token,
-      })
+  const curar = useMutation({
+    mutationFn: async (p_token: string): Promise<Resposta> => {
+      const { data, error } = await supabase.rpc('curar', { p_token })
       if (error) throw error
       const resposta = data as Resposta
       if (resposta?.error) throw new Error(mensagem(resposta))
       return resposta
     },
     onSuccess: () => {
-      // O ouro, o contador de escudo e o estado doente moram todos no perfil. O
-      // grupo entra junto porque o ranking e o feed desenham o mesmo doente.
+      // O ouro e o estado doente moram no perfil. O grupo entra junto porque o
+      // ranking e o feed desenham o mesmo doente.
       cliente.invalidateQueries({ queryKey: ['perfil'] })
       cliente.invalidateQueries({ queryKey: ['grupo'] })
-      setConfirmando(null)
+      setToken(null)
     },
   })
 
+  const guardado = [
+    { sprite: ESCUDO, nome: 'Escudos', quantidade: escudos },
+    { sprite: POCAO, nome: 'Poções de vida', quantidade: perfil?.pocoes_vida ?? 0 },
+    { sprite: POCAO_OURO, nome: 'Poções de ouro', quantidade: perfil?.pocoes_ouro ?? 0 },
+  ]
+
   return (
     <div className="space-y-3 border-t border-border pt-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="flex items-center gap-1.5 font-medium">
-          <img src={ESCUDO} alt="Escudo" data-pixel className={SPRITE} />
-          Escudos
-        </span>
-        <span className="text-muted-foreground">{escudos}</span>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium">Guardados</h2>
+        <Link
+          to="/loja"
+          className="-my-2 flex h-11 items-center gap-0.5 text-sm font-medium text-primary
+                     hover:underline focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-ring"
+        >
+          Comprar na Loja
+          <ChevronRight className="size-4 shrink-0" />
+        </Link>
       </div>
 
+      <ul className="space-y-2">
+        {guardado.map((item) => (
+          <li key={item.nome} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-1.5 font-medium">
+              {/* `alt` vazio porque o nome do item vem escrito ao lado: com o
+                  nome no sprite o leitor de tela diria a mesma coisa duas vezes. */}
+              <img src={item.sprite} alt="" data-pixel className={SPRITE} />
+              {item.nome}
+            </span>
+            <span className="text-muted-foreground">{item.quantidade}</span>
+          </li>
+        ))}
+      </ul>
+
       {doente && (
-        <p className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <img src={POCAO} alt="Poção de vida" data-pixel className={SPRITE} />
-          Seu personagem está doente.
-        </p>
-      )}
-
-      <div className="space-y-2">
-        <Botao
-          variante="secundario"
-          className="w-full"
-          onClick={() => {
-            agir.reset()
-            setConfirmando({ acao: 'escudo', token: crypto.randomUUID() })
-          }}
-        >
-          <img src={ESCUDO} alt="Escudo" data-pixel className={SPRITE_EM_BOTAO} />
-          Comprar escudo por {PRECO_ESCUDO}
-        </Botao>
-
-        {doente && (
+        <>
+          <p className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <img src={POCAO} alt="" data-pixel className={SPRITE} />
+            Seu personagem está doente.
+          </p>
           <Botao
             className="w-full"
             onClick={() => {
-              agir.reset()
-              setConfirmando({ acao: 'cura', token: crypto.randomUUID() })
+              curar.reset()
+              setToken(crypto.randomUUID())
             }}
           >
-            <img src={POCAO} alt="Poção de vida" data-pixel className={SPRITE_EM_BOTAO} />
+            <img src={POCAO} alt="" data-pixel className={SPRITE_EM_BOTAO} />
             Curar por {PRECO_CURA}
           </Botao>
-        )}
-      </div>
+        </>
+      )}
 
       <Confirmar
-        aberta={confirmando !== null}
-        aoFechar={() => setConfirmando(null)}
-        titulo={confirmando?.acao === 'cura' ? 'Curar o personagem?' : 'Comprar um escudo?'}
-        detalhe={
-          confirmando?.acao === 'cura'
-            ? `Custa ${PRECO_CURA} de ouro.`
-            : `Custa ${PRECO_ESCUDO} de ouro.`
-        }
-        rotuloConfirmar={confirmando?.acao === 'cura' ? 'Curar' : 'Comprar'}
-        carregando={agir.isPending}
-        erro={agir.error?.message ?? null}
-        aoConfirmar={() => confirmando && agir.mutate(confirmando)}
+        aberta={token !== null}
+        aoFechar={() => setToken(null)}
+        titulo="Curar o personagem?"
+        detalhe={`Custa ${PRECO_CURA} de ouro.`}
+        rotuloConfirmar="Curar"
+        carregando={curar.isPending}
+        erro={curar.error?.message ?? null}
+        aoConfirmar={() => token && curar.mutate(token)}
       />
     </div>
   )

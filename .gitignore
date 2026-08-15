@@ -7,7 +7,12 @@ dist/
 supabase/.temp/
 playwright-report/
 test-results/
+.playwright-mcp/
 .vercel
+
+# Relatorio de entrega, escrito para o dono ler e apagar. Nao e documentacao do
+# projeto: o que precisa sobreviver vai para o CLAUDE.md.
+RELATORIO.md
 
 # Arquivos de env auxiliares nunca sobem, so o .env.example
 .env.*
