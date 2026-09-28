@@ -7,11 +7,11 @@
  */
 process.loadEnvFile()
 
-const REF = 'oeaftenwsmbkdxqseqrb'
+const REF = process.env.SUPABASE_PROJECT_REF ?? ''
 const URL_SUPABASE = process.env.VITE_SUPABASE_URL ?? ''
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
-if (!URL_SUPABASE.includes(REF)) {
+if (!REF || !URL_SUPABASE.includes(REF)) {
   throw new Error(`VITE_SUPABASE_URL nao aponta para o projeto ${REF}: ${URL_SUPABASE}`)
 }
 if (!SERVICE) throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY no .env')

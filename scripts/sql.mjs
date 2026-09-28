@@ -4,12 +4,13 @@
 //   node scripts/sql.mjs supabase/migrations/0003_gerador_ocorrencias.sql
 //   node scripts/sql.mjs -e "select public.hoje_sp()"
 //
-// O PAT sbp_ do .env nao serve so pro MCP: e um access token de conta inteira.
-// Por isso o guard abaixo: ele enxerga tambem o projeto da extensao outro projeto,
-// e escrever la seria destrutivo.
+// O PAT sbp_ do .env e um access token da conta inteira: enxerga todos os
+// projetos dela. Por isso o guard abaixo exige que o ref do .env seja o mesmo
+// do supabase/config.toml, dois lugares independentes que precisam concordar.
 import { readFileSync } from 'node:fs'
 
-const REF_ESPERADO = 'oeaftenwsmbkdxqseqrb'
+const REF_ESPERADO = readFileSync(new URL('../supabase/config.toml', import.meta.url), 'utf8')
+  .match(/^project_id\s*=\s*"([^"]+)"/m)?.[1]
 
 const env = Object.fromEntries(
   readFileSync(new URL('../.env', import.meta.url), 'utf8')
@@ -21,8 +22,8 @@ const env = Object.fromEntries(
     }),
 )
 
-if (env.SUPABASE_PROJECT_REF !== REF_ESPERADO) {
-  console.error(`ABORTADO: ref ${env.SUPABASE_PROJECT_REF} nao e o projeto do Crias`)
+if (!REF_ESPERADO || env.SUPABASE_PROJECT_REF !== REF_ESPERADO) {
+  console.error(`ABORTADO: SUPABASE_PROJECT_REF (${env.SUPABASE_PROJECT_REF}) difere do project_id do supabase/config.toml (${REF_ESPERADO})`)
   process.exit(1)
 }
 

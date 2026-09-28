@@ -22,7 +22,10 @@ import { fileURLToPath } from 'node:url'
  * lugar, e a falha era silenciosa: sem a pasta, todo `cria` caia em "sem arte
  * de origem" e o script terminava dizendo que estava tudo certo. */
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
-const ENTRADA = '~/Downloads'
+/* Pasta com a arte bruta gerada por IA (subpastas Personagens, Fundos, Itens).
+ * Fica fora do git; aponte com ARTE_GERADA. A arte versionada da familia `cri`
+ * nao depende dela. */
+const ENTRADA = process.env.ARTE_GERADA ?? join(RAIZ, 'arte-origem/gerada')
 const SAIDA = join(RAIZ, 'public/sprites')
 const MANIFESTO = join(SAIDA, 'manifesto.json')
 

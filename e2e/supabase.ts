@@ -1,16 +1,16 @@
 /**
  * Acesso direto ao Supabase REAL nos testes. Sem mock, sem fixture.
- * O guarda de `ref` existe porque o mesmo PAT enxerga outro projeto da conta:
- * se a URL nao for a do Crias, o arquivo se recusa a rodar.
+ * O guarda de `ref` existe porque o mesmo PAT enxerga todos os projetos da conta:
+ * se a URL nao for a do SUPABASE_PROJECT_REF, o arquivo se recusa a rodar.
  */
 process.loadEnvFile()
 
-export const REF = 'oeaftenwsmbkdxqseqrb'
+export const REF = process.env.SUPABASE_PROJECT_REF ?? ''
 export const URL_SUPABASE = process.env.VITE_SUPABASE_URL ?? ''
 export const ANON = process.env.VITE_SUPABASE_ANON_KEY ?? ''
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
-if (!URL_SUPABASE.includes(REF)) {
+if (!REF || !URL_SUPABASE.includes(REF)) {
   throw new Error(`VITE_SUPABASE_URL nao aponta para o projeto ${REF}: ${URL_SUPABASE}`)
 }
 if (!ANON || !SERVICE) {

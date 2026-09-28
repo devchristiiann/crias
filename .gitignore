@@ -17,3 +17,18 @@ RELATORIO.md
 # Arquivos de env auxiliares nunca sobem, so o .env.example
 .env.*
 !.env.example
+
+# Codex CLI: config local com caminho absoluto da maquina
+.codex/
+
+# Notas internas do dono e de agentes de IA: ficam no disco, nunca no repo publico
+CLAUDE.md
+AGENTS.md
+docs/
+.mcp.json
+.claude/
+.code-review-graph/
+env-vercel/
+
+# Arte bruta gerada por IA, entrada do scripts/processar-sprites.mjs
+arte-origem/gerada/
